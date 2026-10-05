@@ -36,3 +36,19 @@ pub fn write(key: &str, value: &str) -> Result<(), String> {
         Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
     }
 }
+
+/// Remove a key from the global git configuration.
+///
+/// Exit code 5 (key does not exist) is treated as success.
+pub fn unset(key: &str) -> Result<(), String> {
+    let output = Command::new("git")
+        .args(["config", "--global", "--unset", key])
+        .output()
+        .map_err(|e| format!("failed to run git: {e}"))?;
+
+    if output.status.success() || output.status.code() == Some(5) {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}

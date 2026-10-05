@@ -1,14 +1,29 @@
-import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
+import { Button, LineEdit, VerticalBox, ComboBox, CheckBox } from "std-widgets.slint";
 
 export component MainWindow inherits Window {
     title: "GitTune";
-    min-width: 480px;
-    min-height: 320px;
+    min-width: 600px;
+    min-height: 580px;
 
     in-out property <string> user-name;
     in-out property <string> user-email;
+
+    in property <[string]> gpg-options;
+    in-out property <string> gpg-selected-value;
+    in-out property <string> gpg-custom-value;
+
+    in property <[string]> branch-options;
+    in-out property <string> branch-selected-value;
+    in-out property <string> branch-custom-value;
+
+    in-out property <bool> commit-gpgsign;
+    in-out property <bool> tag-gpgsign;
+
     in property <string> status-text;
     callback save-clicked();
+
+    property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
+    property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
 
     VerticalBox {
         padding: 24px;
@@ -36,6 +51,50 @@ export component MainWindow inherits Window {
         LineEdit {
             placeholder-text: "user.email";
             text <=> root.user-email;
+        }
+
+        Text {
+            text: "GPG signing key";
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        ComboBox {
+            model: root.gpg-options;
+            current-value <=> root.gpg-selected-value;
+        }
+
+        LineEdit {
+            visible: root.gpg-is-custom;
+            placeholder-text: "Key fingerprint or ID";
+            text <=> root.gpg-custom-value;
+        }
+
+        Text {
+            text: "Default branch";
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        ComboBox {
+            model: root.branch-options;
+            current-value <=> root.branch-selected-value;
+        }
+
+        LineEdit {
+            visible: root.branch-is-custom;
+            placeholder-text: "branch name";
+            text <=> root.branch-custom-value;
+        }
+
+        CheckBox {
+            text: "Sign commits with GPG";
+            checked <=> root.commit-gpgsign;
+        }
+
+        CheckBox {
+            text: "Sign tags with GPG";
+            checked <=> root.tag-gpgsign;
         }
 
         Button {
