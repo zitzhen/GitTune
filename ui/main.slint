@@ -1,0 +1,54 @@
+import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "GitTune";
+    min-width: 480px;
+    min-height: 320px;
+
+    in-out property <string> user-name;
+    in-out property <string> user-email;
+    in property <string> status-text;
+    callback save-clicked();
+
+    VerticalBox {
+        padding: 24px;
+        spacing: 12px;
+
+        Text {
+            text: "Git identity (global)";
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        Text {
+            text: "Name";
+        }
+
+        LineEdit {
+            placeholder-text: "user.name";
+            text <=> root.user-name;
+        }
+
+        Text {
+            text: "Email";
+        }
+
+        LineEdit {
+            placeholder-text: "user.email";
+            text <=> root.user-email;
+        }
+
+        Button {
+            text: "Save";
+            primary: true;
+            clicked => {
+                root.save-clicked();
+            }
+        }
+
+        Text {
+            text: root.status-text;
+            wrap: word-wrap;
+        }
+    }
+}
