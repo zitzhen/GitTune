@@ -13,11 +13,31 @@ fn main() -> Result<(), slint::PlatformError> {
     let default_branch = gitconfig::read("init.defaultBranch").unwrap_or_default();
     let commit_gpgsign = gitconfig::read("commit.gpgsign").unwrap_or_default() == "true";
     let tag_gpgsign = gitconfig::read("tag.gpgsign").unwrap_or_default() == "true";
+    let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
+    let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
+    let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
+    let smtp_port = gitconfig::read("sendemail.smtpserverport").unwrap_or_default();
+    let smtp_enc = gitconfig::read("sendemail.smtpencryption").unwrap_or_default();
 
     window.set_user_name(name.into());
     window.set_user_email(email.into());
     window.set_commit_gpgsign(commit_gpgsign);
     window.set_tag_gpgsign(tag_gpgsign);
+
+    window.set_sendemail_from(smtp_from.into());
+    window.set_sendemail_smtpuser(smtp_user.into());
+    window.set_sendemail_smtpserver(smtp_server.into());
+    window.set_sendemail_smtpserverport(smtp_port.into());
+
+    let encryption_options: Vec<slint::SharedString> =
+        vec!["none".into(), "ssl".into(), "tls".into()];
+    window.set_encryption_options(slint::ModelRc::new(slint::VecModel::from(encryption_options)));
+    let encryption_selected: slint::SharedString = match smtp_enc.as_str() {
+        "ssl" => "ssl".into(),
+        "tls" => "tls".into(),
+        _ => "none".into(),
+    };
+    window.set_encryption_selected_value(encryption_selected);
 
     // Load local GPG secret keys.
     let gpg_keys = gpg::list_keys().unwrap_or_default();
@@ -97,6 +117,12 @@ fn main() -> Result<(), slint::PlatformError> {
         let commit_gpg = if window.get_commit_gpgsign() { "true" } else { "false" };
         let tag_gpg = if window.get_tag_gpgsign() { "true" } else { "false" };
 
+        let smtp_from = window.get_sendemail_from();
+        let smtp_user = window.get_sendemail_smtpuser();
+        let smtp_server = window.get_sendemail_smtpserver();
+        let smtp_port = window.get_sendemail_smtpserverport();
+        let smtp_enc = window.get_encryption_selected_value();
+
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
             .and_then(|()| {
@@ -114,7 +140,42 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             })
             .and_then(|()| gitconfig::write("commit.gpgsign", commit_gpg))
-            .and_then(|()| gitconfig::write("tag.gpgsign", tag_gpg));
+            .and_then(|()| gitconfig::write("tag.gpgsign", tag_gpg))
+            .and_then(|()| {
+                if smtp_from.is_empty() {
+                    gitconfig::unset("sendemail.from")
+                } else {
+                    gitconfig::write("sendemail.from", &smtp_from)
+                }
+            })
+            .and_then(|()| {
+                if smtp_user.is_empty() {
+                    gitconfig::unset("sendemail.smtpuser")
+                } else {
+                    gitconfig::write("sendemail.smtpuser", &smtp_user)
+                }
+            })
+            .and_then(|()| {
+                if smtp_server.is_empty() {
+                    gitconfig::unset("sendemail.smtpserver")
+                } else {
+                    gitconfig::write("sendemail.smtpserver", &smtp_server)
+                }
+            })
+            .and_then(|()| {
+                if smtp_port.is_empty() {
+                    gitconfig::unset("sendemail.smtpserverport")
+                } else {
+                    gitconfig::write("sendemail.smtpserverport", &smtp_port)
+                }
+            })
+            .and_then(|()| {
+                if smtp_enc == "none" {
+                    gitconfig::unset("sendemail.smtpencryption")
+                } else {
+                    gitconfig::write("sendemail.smtpencryption", &smtp_enc)
+                }
+            });
 
         let status = match result {
             Ok(()) => "Saved.".to_string(),

@@ -1,4 +1,4 @@
-import { Button, LineEdit, VerticalBox, ComboBox, CheckBox } from "std-widgets.slint";
+import { Button, LineEdit, VerticalBox, HorizontalBox, ComboBox, CheckBox, ScrollView } from "std-widgets.slint";
 
 export component MainWindow inherits Window {
     title: "GitTune";
@@ -19,95 +19,170 @@ export component MainWindow inherits Window {
     in-out property <bool> commit-gpgsign;
     in-out property <bool> tag-gpgsign;
 
+    in-out property <string> sendemail-from;
+    in-out property <string> sendemail-smtpuser;
+    in-out property <string> sendemail-smtpserver;
+    in-out property <string> sendemail-smtpserverport;
+
+    in property <[string]> encryption-options;
+    in-out property <string> encryption-selected-value;
+
     in property <string> status-text;
     callback save-clicked();
 
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
 
-    VerticalBox {
-        padding: 24px;
-        spacing: 12px;
+    ScrollView {
+        VerticalBox {
+            padding: 24px;
+            spacing: 12px;
 
-        Text {
-            text: "Git identity (global)";
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        Text {
-            text: "Name";
-        }
-
-        LineEdit {
-            placeholder-text: "user.name";
-            text <=> root.user-name;
-        }
-
-        Text {
-            text: "Email";
-        }
-
-        LineEdit {
-            placeholder-text: "user.email";
-            text <=> root.user-email;
-        }
-
-        Text {
-            text: "GPG signing key";
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        ComboBox {
-            model: root.gpg-options;
-            current-value <=> root.gpg-selected-value;
-        }
-
-        LineEdit {
-            visible: root.gpg-is-custom;
-            placeholder-text: "Key fingerprint or ID";
-            text <=> root.gpg-custom-value;
-        }
-
-        Text {
-            text: "Default branch";
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        ComboBox {
-            model: root.branch-options;
-            current-value <=> root.branch-selected-value;
-        }
-
-        LineEdit {
-            visible: root.branch-is-custom;
-            placeholder-text: "branch name";
-            text <=> root.branch-custom-value;
-        }
-
-        CheckBox {
-            text: "Sign commits with GPG";
-            checked <=> root.commit-gpgsign;
-        }
-
-        CheckBox {
-            text: "Sign tags with GPG";
-            checked <=> root.tag-gpgsign;
-        }
-
-        Button {
-            text: "Save";
-            primary: true;
-            clicked => {
-                root.save-clicked();
+            Text {
+                text: "Git identity (global)";
+                font-size: 18px;
+                font-weight: 700;
             }
-        }
 
-        Text {
-            text: root.status-text;
-            wrap: word-wrap;
+            Text {
+                text: "Name";
+            }
+
+            LineEdit {
+                placeholder-text: "user.name";
+                text <=> root.user-name;
+            }
+
+            Text {
+                text: "Email";
+            }
+
+            LineEdit {
+                placeholder-text: "user.email";
+                text <=> root.user-email;
+            }
+
+            Text {
+                text: "GPG signing key";
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            ComboBox {
+                model: root.gpg-options;
+                current-value <=> root.gpg-selected-value;
+            }
+
+            LineEdit {
+                visible: root.gpg-is-custom;
+                placeholder-text: "Key fingerprint or ID";
+                text <=> root.gpg-custom-value;
+            }
+
+            Text {
+                text: "Default branch";
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            ComboBox {
+                model: root.branch-options;
+                current-value <=> root.branch-selected-value;
+            }
+
+            LineEdit {
+                visible: root.branch-is-custom;
+                placeholder-text: "branch name";
+                text <=> root.branch-custom-value;
+            }
+
+            CheckBox {
+                text: "Sign commits with GPG";
+                checked <=> root.commit-gpgsign;
+            }
+
+            CheckBox {
+                text: "Sign tags with GPG";
+                checked <=> root.tag-gpgsign;
+            }
+
+            Text {
+                text: "Email sending (sendemail)";
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: "From";
+            }
+
+            LineEdit {
+                placeholder-text: "Name <you@example.com>";
+                text <=> root.sendemail-from;
+            }
+
+            Text {
+                text: "SMTP username";
+            }
+
+            LineEdit {
+                placeholder-text: "sendemail.smtpuser";
+                text <=> root.sendemail-smtpuser;
+            }
+
+            HorizontalBox {
+                spacing: 12px;
+
+                VerticalBox {
+                    spacing: 4px;
+
+                    Text {
+                        text: "SMTP server";
+                    }
+
+                    LineEdit {
+                        placeholder-text: "smtp.example.com";
+                        text <=> root.sendemail-smtpserver;
+                    }
+                }
+
+                VerticalBox {
+                    spacing: 4px;
+
+                    Text {
+                        text: "Port";
+                    }
+
+                    LineEdit {
+                        width: 100px;
+                        input-type: number;
+                        placeholder-text: "465";
+                        text <=> root.sendemail-smtpserverport;
+                    }
+                }
+            }
+
+            Text {
+                text: "Encryption";
+            }
+
+            ComboBox {
+                model: root.encryption-options;
+                current-value <=> root.encryption-selected-value;
+            }
+
+            Button {
+                text: "Save";
+                primary: true;
+                clicked => {
+                    root.save-clicked();
+                }
+            }
+
+            Text {
+                text: root.status-text;
+                wrap: word-wrap;
+            }
         }
     }
 }
