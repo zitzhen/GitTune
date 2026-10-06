@@ -1,3 +1,9 @@
+// Release builds are GUI applications on Windows: without this the binary is a
+// console-subsystem program, and Windows allocates a console window for it
+// before `main` runs (i.e. before the Slint window can appear). Debug builds
+// keep the console so `cargo run` still shows output.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod gitconfig;
 mod gpg;
 
