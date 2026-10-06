@@ -1,9 +1,25 @@
-import { Button, LineEdit, VerticalBox, HorizontalBox, ComboBox, CheckBox, ScrollView } from "std-widgets.slint";
+import { Button, LineEdit, VerticalBox, HorizontalBox, ComboBox, Switch, ScrollView, Palette } from "std-widgets.slint";
+
+component Card inherits Rectangle {
+    background: Palette.alternate-background;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Palette.alternate-background.darker(8%);
+
+    @children
+}
+
+component SectionTitle inherits Text {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.55;
+    letter-spacing: 0.6px;
+}
 
 export component MainWindow inherits Window {
     title: "GitTune";
-    min-width: 600px;
-    min-height: 580px;
+    min-width: 680px;
+    min-height: 640px;
 
     in-out property <string> user-name;
     in-out property <string> user-email;
@@ -35,153 +51,194 @@ export component MainWindow inherits Window {
 
     ScrollView {
         VerticalBox {
-            padding: 24px;
-            spacing: 12px;
+            padding: 28px;
+            spacing: 20px;
 
-            Text {
-                text: "Git identity (global)";
-                font-size: 18px;
-                font-weight: 700;
+            // ── Identity ──
+            Card {
+                VerticalBox {
+                    padding: 20px;
+                    spacing: 10px;
+
+                    SectionTitle {
+                        text: "Git identity (global)";
+                    }
+
+                    Text {
+                        text: "Name";
+                        font-size: 13px;
+                    }
+
+                    LineEdit {
+                        placeholder-text: "user.name";
+                        text <=> root.user-name;
+                    }
+
+                    Text {
+                        text: "Email";
+                        font-size: 13px;
+                    }
+
+                    LineEdit {
+                        placeholder-text: "user.email";
+                        text <=> root.user-email;
+                    }
+                }
             }
 
-            Text {
-                text: "Name";
+            // ── GPG & Branch ──
+            Card {
+                VerticalBox {
+                    padding: 20px;
+                    spacing: 10px;
+
+                    SectionTitle {
+                        text: "Signing & defaults";
+                    }
+
+                    Text {
+                        text: "GPG signing key";
+                        font-size: 13px;
+                    }
+
+                    ComboBox {
+                        model: root.gpg-options;
+                        current-value <=> root.gpg-selected-value;
+                    }
+
+                    LineEdit {
+                        visible: root.gpg-is-custom;
+                        placeholder-text: "Key fingerprint or ID";
+                        text <=> root.gpg-custom-value;
+                    }
+
+                    Text {
+                        text: "Default branch";
+                        font-size: 13px;
+                    }
+
+                    ComboBox {
+                        model: root.branch-options;
+                        current-value <=> root.branch-selected-value;
+                    }
+
+                    LineEdit {
+                        visible: root.branch-is-custom;
+                        placeholder-text: "branch name";
+                        text <=> root.branch-custom-value;
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Palette.alternate-background.darker(8%);
+                    }
+
+                    Switch {
+                        text: "Sign commits with GPG";
+                        checked <=> root.commit-gpgsign;
+                    }
+
+                    Switch {
+                        text: "Sign tags with GPG";
+                        checked <=> root.tag-gpgsign;
+                    }
+                }
             }
 
-            LineEdit {
-                placeholder-text: "user.name";
-                text <=> root.user-name;
+            // ── Email sending ──
+            Card {
+                VerticalBox {
+                    padding: 20px;
+                    spacing: 10px;
+
+                    SectionTitle {
+                        text: "Email sending (sendemail)";
+                    }
+
+                    Text {
+                        text: "From";
+                        font-size: 13px;
+                    }
+
+                    LineEdit {
+                        placeholder-text: "Name <you@example.com>";
+                        text <=> root.sendemail-from;
+                    }
+
+                    Text {
+                        text: "SMTP username";
+                        font-size: 13px;
+                    }
+
+                    LineEdit {
+                        placeholder-text: "sendemail.smtpuser";
+                        text <=> root.sendemail-smtpuser;
+                    }
+
+                    HorizontalBox {
+                        spacing: 12px;
+
+                        VerticalBox {
+                            spacing: 4px;
+
+                            Text {
+                                text: "SMTP server";
+                                font-size: 13px;
+                            }
+
+                            LineEdit {
+                                placeholder-text: "smtp.example.com";
+                                text <=> root.sendemail-smtpserver;
+                            }
+                        }
+
+                        VerticalBox {
+                            spacing: 4px;
+
+                            Text {
+                                text: "Port";
+                                font-size: 13px;
+                            }
+
+                            LineEdit {
+                                width: 96px;
+                                input-type: number;
+                                placeholder-text: "465";
+                                text <=> root.sendemail-smtpserverport;
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "Encryption";
+                        font-size: 13px;
+                    }
+
+                    ComboBox {
+                        model: root.encryption-options;
+                        current-value <=> root.encryption-selected-value;
+                    }
+                }
             }
 
-            Text {
-                text: "Email";
-            }
-
-            LineEdit {
-                placeholder-text: "user.email";
-                text <=> root.user-email;
-            }
-
-            Text {
-                text: "GPG signing key";
-                font-size: 16px;
-                font-weight: 700;
-            }
-
-            ComboBox {
-                model: root.gpg-options;
-                current-value <=> root.gpg-selected-value;
-            }
-
-            LineEdit {
-                visible: root.gpg-is-custom;
-                placeholder-text: "Key fingerprint or ID";
-                text <=> root.gpg-custom-value;
-            }
-
-            Text {
-                text: "Default branch";
-                font-size: 16px;
-                font-weight: 700;
-            }
-
-            ComboBox {
-                model: root.branch-options;
-                current-value <=> root.branch-selected-value;
-            }
-
-            LineEdit {
-                visible: root.branch-is-custom;
-                placeholder-text: "branch name";
-                text <=> root.branch-custom-value;
-            }
-
-            CheckBox {
-                text: "Sign commits with GPG";
-                checked <=> root.commit-gpgsign;
-            }
-
-            CheckBox {
-                text: "Sign tags with GPG";
-                checked <=> root.tag-gpgsign;
-            }
-
-            Text {
-                text: "Email sending (sendemail)";
-                font-size: 16px;
-                font-weight: 700;
-            }
-
-            Text {
-                text: "From";
-            }
-
-            LineEdit {
-                placeholder-text: "Name <you@example.com>";
-                text <=> root.sendemail-from;
-            }
-
-            Text {
-                text: "SMTP username";
-            }
-
-            LineEdit {
-                placeholder-text: "sendemail.smtpuser";
-                text <=> root.sendemail-smtpuser;
-            }
-
+            // ── Save row ──
             HorizontalBox {
-                spacing: 12px;
+                spacing: 16px;
 
-                VerticalBox {
-                    spacing: 4px;
-
-                    Text {
-                        text: "SMTP server";
-                    }
-
-                    LineEdit {
-                        placeholder-text: "smtp.example.com";
-                        text <=> root.sendemail-smtpserver;
-                    }
+                Text {
+                    text: root.status-text;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
                 }
 
-                VerticalBox {
-                    spacing: 4px;
-
-                    Text {
-                        text: "Port";
-                    }
-
-                    LineEdit {
-                        width: 100px;
-                        input-type: number;
-                        placeholder-text: "465";
-                        text <=> root.sendemail-smtpserverport;
+                Button {
+                    text: "Save";
+                    primary: true;
+                    clicked => {
+                        root.save-clicked();
                     }
                 }
-            }
-
-            Text {
-                text: "Encryption";
-            }
-
-            ComboBox {
-                model: root.encryption-options;
-                current-value <=> root.encryption-selected-value;
-            }
-
-            Button {
-                text: "Save";
-                primary: true;
-                clicked => {
-                    root.save-clicked();
-                }
-            }
-
-            Text {
-                text: root.status-text;
-                wrap: word-wrap;
             }
         }
     }
