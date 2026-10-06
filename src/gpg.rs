@@ -6,6 +6,24 @@
 
 use std::process::Command;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// `CREATE_NO_WINDOW`: stop Windows from allocating a console for the child
+/// process. A GUI-subsystem build has no console to inherit, so without this
+/// flag the `gpg` call would flash a console window of its own.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Build a `gpg` invocation that never opens a console window on Windows.
+fn gpg(args: &[&str]) -> Command {
+    let mut command = Command::new("gpg");
+    command.args(args);
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 /// A local GPG secret (primary) key.
 pub struct GpgKey {
     /// Full 40-character uppercase fingerprint of the primary key.
@@ -19,15 +37,14 @@ pub struct GpgKey {
 /// Subkeys (`ssb`) are ignored. Returns an error if gpg cannot be executed
 /// or exits with a non-zero status.
 pub fn list_keys() -> Result<Vec<GpgKey>, String> {
-    let output = Command::new("gpg")
-        .args([
-            "--list-secret-keys",
-            "--with-colons",
-            "--keyid-format",
-            "long",
-        ])
-        .output()
-        .map_err(|e| format!("failed to run gpg: {e}"))?;
+    let output = gpg(&[
+        "--list-secret-keys",
+        "--with-colons",
+        "--keyid-format",
+        "long",
+    ])
+    .output()
+    .map_err(|e| format!("failed to run gpg: {e}"))?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());

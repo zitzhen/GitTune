@@ -5,12 +5,29 @@
 
 use std::process::Command;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// `CREATE_NO_WINDOW`: stop Windows from allocating a console for the child
+/// process. A GUI-subsystem build has no console to inherit, so without this
+/// flag every `git` call would flash a console window of its own.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Build a `git` invocation that never opens a console window on Windows.
+fn git(args: &[&str]) -> Command {
+    let mut command = Command::new("git");
+    command.args(args);
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 /// Read a key from the global git configuration.
 ///
 /// Returns `Ok(String::new())` when the key is not set (git exits with 1).
 pub fn read(key: &str) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(["config", "--global", "--get", key])
+    let output = git(&["config", "--global", "--get", key])
         .output()
         .map_err(|e| format!("failed to run git: {e}"))?;
 
@@ -25,8 +42,7 @@ pub fn read(key: &str) -> Result<String, String> {
 
 /// Write a key to the global git configuration.
 pub fn write(key: &str, value: &str) -> Result<(), String> {
-    let output = Command::new("git")
-        .args(["config", "--global", key, value])
+    let output = git(&["config", "--global", key, value])
         .output()
         .map_err(|e| format!("failed to run git: {e}"))?;
 
@@ -41,8 +57,7 @@ pub fn write(key: &str, value: &str) -> Result<(), String> {
 ///
 /// Exit code 5 (key does not exist) is treated as success.
 pub fn unset(key: &str) -> Result<(), String> {
-    let output = Command::new("git")
-        .args(["config", "--global", "--unset", key])
+    let output = git(&["config", "--global", "--unset", key])
         .output()
         .map_err(|e| format!("failed to run git: {e}"))?;
 
