@@ -1,25 +1,161 @@
-import { Button, LineEdit, VerticalBox, HorizontalBox, ComboBox, Switch, ScrollView, Palette } from "std-widgets.slint";
+import { Button, LineEdit, VerticalBox, HorizontalBox, ComboBox, Switch, ScrollView } from "std-widgets.slint";
+
+// ── Palette (Adwaita dark inspired) ──
+global Adw {
+    out property <color> window-bg: #1b1b20;
+    out property <color> sidebar-bg: #232329;
+    out property <color> card-bg: #2c2c33;
+    out property <color> well-bg: #3a3a42;
+    out property <color> accent: #3584e4;
+    out property <color> accent-hover: #4a8ff0;
+    out property <color> text: #f2f2f5;
+    out property <color> text-dim: #9a9aa3;
+}
 
 component Card inherits Rectangle {
-    background: Palette.alternate-background;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: Palette.alternate-background.darker(8%);
+    background: Adw.card-bg;
+    border-radius: 12px;
 
     @children
 }
 
 component SectionTitle inherits Text {
-    font-size: 13px;
+    color: Adw.text-dim;
+    font-size: 12px;
     font-weight: 700;
-    opacity: 0.55;
     letter-spacing: 0.6px;
+}
+
+component FieldLabel inherits Text {
+    color: Adw.text-dim;
+    font-size: 13px;
+}
+
+component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <string> icon;
+    in property <bool> selected;
+    callback clicked();
+
+    height: 40px;
+    border-radius: 8px;
+    background: root.selected ? #ffffff1f : touch.has-hover ? #ffffff10 : transparent;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        Text {
+            text: root.icon;
+            color: root.selected ? Adw.text : Adw.text-dim;
+            font-size: 15px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.label;
+            color: root.selected ? Adw.text : #d4d4da;
+            font-size: 14px;
+            font-weight: root.selected ? 700 : 400;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component PillButton inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    width: 110px;
+    height: 40px;
+    border-radius: 20px;
+    background: touch.pressed ? Adw.accent.darker(10%) : touch.has-hover ? Adw.accent-hover : Adw.accent;
+
+    Text {
+        text: root.label;
+        color: white;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in-out property <string> value;
+
+    height: 38px;
+    background: Adw.well-bg;
+    border-radius: 9px;
+
+    HorizontalLayout {
+        padding: 3px;
+        spacing: 3px;
+
+        for opt in root.options: Rectangle {
+            border-radius: 7px;
+            background: root.value == opt ? Adw.accent : seg-touch.has-hover ? #ffffff12 : transparent;
+
+            Text {
+                text: opt;
+                color: root.value == opt ? white : Adw.text-dim;
+                font-size: 13px;
+                font-weight: root.value == opt ? 700 : 400;
+            }
+
+            seg-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.value = opt;
+                }
+            }
+        }
+    }
+}
+
+component ToggleRow inherits Rectangle {
+    in property <string> label;
+    in-out property <bool> checked;
+
+    height: 46px;
+
+    HorizontalLayout {
+        padding-left: 2px;
+        padding-right: 2px;
+
+        Text {
+            text: root.label;
+            color: Adw.text;
+            font-size: 14px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Switch {
+            checked <=> root.checked;
+        }
+    }
 }
 
 export component MainWindow inherits Window {
     title: "GitTune";
-    min-width: 680px;
-    min-height: 640px;
+    min-width: 920px;
+    min-height: 620px;
+    background: Adw.window-bg;
 
     in-out property <string> user-name;
     in-out property <string> user-email;
@@ -48,195 +184,322 @@ export component MainWindow inherits Window {
 
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
+    in-out property <int> current-page: 0;
 
-    ScrollView {
-        VerticalBox {
-            padding: 28px;
-            spacing: 20px;
+    property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : "Email Sending";
 
-            // ── Identity ──
-            Card {
-                VerticalBox {
-                    padding: 20px;
+    HorizontalLayout {
+        // ── Sidebar ──
+        Rectangle {
+            width: 240px;
+            background: Adw.sidebar-bg;
+
+            VerticalLayout {
+                padding: 18px;
+                padding-top: 22px;
+                spacing: 4px;
+
+                HorizontalLayout {
                     spacing: 10px;
-
-                    SectionTitle {
-                        text: "Git identity (global)";
-                    }
-
-                    Text {
-                        text: "Name";
-                        font-size: 13px;
-                    }
-
-                    LineEdit {
-                        placeholder-text: "user.name";
-                        text <=> root.user-name;
-                    }
-
-                    Text {
-                        text: "Email";
-                        font-size: 13px;
-                    }
-
-                    LineEdit {
-                        placeholder-text: "user.email";
-                        text <=> root.user-email;
-                    }
-                }
-            }
-
-            // ── GPG & Branch ──
-            Card {
-                VerticalBox {
-                    padding: 20px;
-                    spacing: 10px;
-
-                    SectionTitle {
-                        text: "Signing & defaults";
-                    }
-
-                    Text {
-                        text: "GPG signing key";
-                        font-size: 13px;
-                    }
-
-                    ComboBox {
-                        model: root.gpg-options;
-                        current-value <=> root.gpg-selected-value;
-                    }
-
-                    LineEdit {
-                        visible: root.gpg-is-custom;
-                        placeholder-text: "Key fingerprint or ID";
-                        text <=> root.gpg-custom-value;
-                    }
-
-                    Text {
-                        text: "Default branch";
-                        font-size: 13px;
-                    }
-
-                    ComboBox {
-                        model: root.branch-options;
-                        current-value <=> root.branch-selected-value;
-                    }
-
-                    LineEdit {
-                        visible: root.branch-is-custom;
-                        placeholder-text: "branch name";
-                        text <=> root.branch-custom-value;
-                    }
+                    height: 44px;
 
                     Rectangle {
-                        height: 1px;
-                        background: Palette.alternate-background.darker(8%);
+                        width: 12px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: Adw.accent;
+                        y: (parent.height - self.height) / 2;
                     }
 
-                    Switch {
-                        text: "Sign commits with GPG";
-                        checked <=> root.commit-gpgsign;
-                    }
-
-                    Switch {
-                        text: "Sign tags with GPG";
-                        checked <=> root.tag-gpgsign;
+                    Text {
+                        text: "GitTune";
+                        color: Adw.text;
+                        font-size: 18px;
+                        font-weight: 700;
+                        vertical-alignment: center;
                     }
                 }
-            }
 
-            // ── Email sending ──
-            Card {
-                VerticalBox {
-                    padding: 20px;
-                    spacing: 10px;
+                Rectangle {
+                    height: 12px;
+                }
 
-                    SectionTitle {
-                        text: "Email sending (sendemail)";
-                    }
-
-                    Text {
-                        text: "From";
-                        font-size: 13px;
-                    }
-
-                    LineEdit {
-                        placeholder-text: "Name <you@example.com>";
-                        text <=> root.sendemail-from;
-                    }
-
-                    Text {
-                        text: "SMTP username";
-                        font-size: 13px;
-                    }
-
-                    LineEdit {
-                        placeholder-text: "sendemail.smtpuser";
-                        text <=> root.sendemail-smtpuser;
-                    }
-
-                    HorizontalBox {
-                        spacing: 12px;
-
-                        VerticalBox {
-                            spacing: 4px;
-
-                            Text {
-                                text: "SMTP server";
-                                font-size: 13px;
-                            }
-
-                            LineEdit {
-                                placeholder-text: "smtp.example.com";
-                                text <=> root.sendemail-smtpserver;
-                            }
-                        }
-
-                        VerticalBox {
-                            spacing: 4px;
-
-                            Text {
-                                text: "Port";
-                                font-size: 13px;
-                            }
-
-                            LineEdit {
-                                width: 96px;
-                                input-type: number;
-                                placeholder-text: "465";
-                                text <=> root.sendemail-smtpserverport;
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "Encryption";
-                        font-size: 13px;
-                    }
-
-                    ComboBox {
-                        model: root.encryption-options;
-                        current-value <=> root.encryption-selected-value;
+                NavItem {
+                    icon: "◉";
+                    label: "Identity";
+                    selected: root.current-page == 0;
+                    clicked => {
+                        root.current-page = 0;
                     }
                 }
-            }
 
-            // ── Save row ──
-            HorizontalBox {
-                spacing: 16px;
+                NavItem {
+                    icon: "✎";
+                    label: "Signing & Defaults";
+                    selected: root.current-page == 1;
+                    clicked => {
+                        root.current-page = 1;
+                    }
+                }
+
+                NavItem {
+                    icon: "✉";
+                    label: "Email Sending";
+                    selected: root.current-page == 2;
+                    clicked => {
+                        root.current-page = 2;
+                    }
+                }
+
+                Rectangle {
+                    vertical-stretch: 1;
+                }
 
                 Text {
-                    text: root.status-text;
-                    wrap: word-wrap;
-                    vertical-alignment: center;
-                    horizontal-stretch: 1;
+                    text: "v1.2.0";
+                    color: Adw.text-dim;
+                    font-size: 11px;
+                    horizontal-alignment: left;
+                }
+            }
+        }
+
+        // ── Separator ──
+        Rectangle {
+            width: 1px;
+            background: #ffffff10;
+        }
+
+        // ── Content ──
+        Rectangle {
+            horizontal-stretch: 1;
+            background: Adw.window-bg;
+
+            VerticalLayout {
+                // Header
+                Rectangle {
+                    height: 76px;
+
+                    Text {
+                        x: 32px;
+                        text: root.page-title;
+                        color: Adw.text;
+                        font-size: 24px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
                 }
 
-                Button {
-                    text: "Save";
-                    primary: true;
-                    clicked => {
-                        root.save-clicked();
+                // Scrollable cards
+                ScrollView {
+                    vertical-stretch: 1;
+
+                    VerticalBox {
+                        padding-left: 32px;
+                        padding-right: 32px;
+                        padding-bottom: 24px;
+                        spacing: 18px;
+
+                        // ── Page: Identity ──
+                        if root.current-page == 0: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Git identity (global)";
+                                }
+
+                                FieldLabel {
+                                    text: "Name";
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "user.name";
+                                    text <=> root.user-name;
+                                }
+
+                                FieldLabel {
+                                    text: "Email";
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "user.email";
+                                    text <=> root.user-email;
+                                }
+                            }
+                        }
+
+                        // ── Page: Signing & Defaults ──
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "GPG signing key";
+                                }
+
+                                ComboBox {
+                                    model: root.gpg-options;
+                                    current-value <=> root.gpg-selected-value;
+                                }
+
+                                LineEdit {
+                                    visible: root.gpg-is-custom;
+                                    placeholder-text: "Key fingerprint or ID";
+                                    text <=> root.gpg-custom-value;
+                                }
+
+                                SectionTitle {
+                                    text: "Default branch";
+                                }
+
+                                ComboBox {
+                                    model: root.branch-options;
+                                    current-value <=> root.branch-selected-value;
+                                }
+
+                                LineEdit {
+                                    visible: root.branch-is-custom;
+                                    placeholder-text: "branch name";
+                                    text <=> root.branch-custom-value;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                padding-top: 14px;
+                                padding-bottom: 14px;
+                                spacing: 4px;
+
+                                SectionTitle {
+                                    text: "Signing";
+                                }
+
+                                ToggleRow {
+                                    label: "Sign commits with GPG";
+                                    checked <=> root.commit-gpgsign;
+                                }
+
+                                Rectangle {
+                                    height: 1px;
+                                    background: #ffffff0d;
+                                }
+
+                                ToggleRow {
+                                    label: "Sign tags with GPG";
+                                    checked <=> root.tag-gpgsign;
+                                }
+                            }
+                        }
+
+                        // ── Page: Email Sending ──
+                        if root.current-page == 2: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "sendemail";
+                                }
+
+                                FieldLabel {
+                                    text: "From";
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "Name <you@example.com>";
+                                    text <=> root.sendemail-from;
+                                }
+
+                                FieldLabel {
+                                    text: "SMTP username";
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "sendemail.smtpuser";
+                                    text <=> root.sendemail-smtpuser;
+                                }
+
+                                HorizontalBox {
+                                    spacing: 14px;
+
+                                    VerticalBox {
+                                        spacing: 6px;
+
+                                        FieldLabel {
+                                            text: "SMTP server";
+                                        }
+
+                                        LineEdit {
+                                            placeholder-text: "smtp.example.com";
+                                            text <=> root.sendemail-smtpserver;
+                                        }
+                                    }
+
+                                    VerticalBox {
+                                        spacing: 6px;
+
+                                        FieldLabel {
+                                            text: "Port";
+                                        }
+
+                                        LineEdit {
+                                            width: 96px;
+                                            input-type: number;
+                                            placeholder-text: "465";
+                                            text <=> root.sendemail-smtpserverport;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.current-page == 2: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Encryption";
+                                }
+
+                                Segmented {
+                                    options: root.encryption-options;
+                                    value <=> root.encryption-selected-value;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Bottom bar ──
+                Rectangle {
+                    height: 68px;
+
+                    HorizontalLayout {
+                        padding-left: 32px;
+                        padding-right: 32px;
+                        spacing: 16px;
+
+                        Text {
+                            text: root.status-text;
+                            color: Adw.text-dim;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+
+                        PillButton {
+                            label: "Save";
+                            clicked => {
+                                root.save-clicked();
+                            }
+                        }
                     }
                 }
             }
