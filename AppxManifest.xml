@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  GitTune - MSIX / Microsoft Store package manifest (source of truth).
+
+  Identity values below are issued by Partner Center. Do NOT invent or edit them
+  by hand; change them in Partner Center and re-download if they ever change.
+
+    Package/Identity/Name                     OliverLin.gittune
+    Package/Identity/Publisher                CN=A2A117EA-E7A5-4E7B-8905-441F8215E9A4
+    Package/Properties/PublisherDisplayName   OliverLin
+    Package Family Name (PFN)                 OliverLin.gittune_8q9a519brkbx0
+    Package SID                               S-1-15-2-1630421473-1458451896-820385715-2649480046-476101059-3880151009-3782617673
+    Store ID                                  9P3QDXV5HTBM
+
+  The MSA app ID (ba343920-5c48-4a61-8afe-4408348bf41b) and the Store ID are
+  Partner Center identifiers only - they do NOT appear in this manifest.
+
+  GitTune is a full-trust Win32 desktop app (Rust + Slint), not a UWP app, so it
+  declares EntryPoint="Windows.FullTrustApplication" plus the restricted
+  capability "runFullTrust". The manifest and the built GitTune.exe must sit in
+  the same folder of the package layout, next to Assets\.
+
+  Version must be 4-part and match Cargo.toml's 3-part version + ".0"
+  (Cargo.toml 1.3.2  ->  Version="1.3.2.0").
+
+  AppxManifest.xml in this repository is byte-identical to this file: Visual
+  Studio / MSBuild consume "Package.appxmanifest", while makeappx, the MSIX
+  Packaging Tool, MSIX Hero and the Store uploader look for "AppxManifest.xml".
+  Keep the two files in sync (or copy/rename this one at pack time).
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="OliverLin.gittune"
+    Publisher="CN=A2A117EA-E7A5-4E7B-8905-441F8215E9A4"
+    Version="1.3.2.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>GitTune</DisplayName>
+    <PublisherDisplayName>OliverLin</PublisherDisplayName>
+    <Description>View and edit your global Git identity: user name, email, GPG signing key, default branch and send-email settings.</Description>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.17763.0"
+      MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US" />
+    <Resource Language="zh-CN" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="App"
+      Executable="GitTune.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="GitTune"
+        Description="View and edit your global Git identity: user name, email, GPG signing key, default branch and send-email settings."
+        BackgroundColor="#211712"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="Assets\Wide310x150Logo.png"
+          Square71x71Logo="Assets\Square71x71Logo.png"
+          Square310x310Logo="Assets\Square310x310Logo.png"
+          ShortName="GitTune" />
+        <uap:SplashScreen
+          Image="Assets\SplashScreen.png"
+          BackgroundColor="#211712" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
