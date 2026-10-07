@@ -157,6 +157,10 @@ export component MainWindow inherits Window {
     min-height: 620px;
     background: Adw.window-bg;
 
+    // Filled in from Rust (see src/main.rs), which reads the version from
+    // Cargo.toml at build time. Never hardcode the version here.
+    in property <string> app-version;
+
     in-out property <string> user-name;
     in-out property <string> user-email;
 
@@ -256,7 +260,7 @@ export component MainWindow inherits Window {
                 }
 
                 Text {
-                    text: "v1.3.1";
+                    text: "v" + root.app-version;
                     color: Adw.text-dim;
                     font-size: 11px;
                     horizontal-alignment: left;

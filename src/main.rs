@@ -12,6 +12,9 @@ slint::include_modules!();
 fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
 
+    // The crate version comes from Cargo.toml (bumped there, not in the UI).
+    window.set_app_version(env!("CARGO_PKG_VERSION").into());
+
     // Load current git config values.
     let name = gitconfig::read("user.name").unwrap_or_default();
     let email = gitconfig::read("user.email").unwrap_or_default();
