@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WiX Toolset v4/v5 installer source for GitTune.
+
+  Built in CI (.github/workflows/release.yml) with:
+
+    wix build wix\GitTune.wxs -arch x64 ^
+      -d Version=1.3.2 ^
+      -d SourceDir=<repo>\target\release ^
+      -d IconFile=<repo>\Assets\gittune.ico ^
+      -o dist\GitTune-1.3.2-x64.msi
+
+  Preprocessor variables:
+    Version    MSI product version - three fields only (major.minor.build);
+               MSI rejects a fourth field, unlike the MSIX manifest.
+    SourceDir  Folder holding the release build of GitTune.exe.
+    IconFile   Multi-size .ico used for ARP and the Start-menu shortcut.
+
+  UpgradeCode is the permanent identity of this product across versions:
+  never change it, or upgrades will install side by side instead of replacing.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package
+    Name="GitTune"
+    Manufacturer="ZIT Studio"
+    Version="$(var.Version)"
+    UpgradeCode="43B34C21-330F-48C7-B12B-0CA5FFD4FBB2"
+    Language="1033"
+    Scope="perMachine"
+    Compressed="yes">
+
+    <SummaryInformation
+      Description="GitTune $(var.Version) Setup"
+      Manufacturer="ZIT Studio" />
+
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of GitTune is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="GitTuneIcon" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="GitTuneIcon" />
+    <Property Id="ARPHELPLINK" Value="https://gittune.zitzhen.cn" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="GitTune" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="GitTune" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="GitTune" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Component Id="cmpGitTuneExe" Guid="D94F05FD-01A7-4D41-A6E2-7AC864F672E3">
+        <File Id="filGitTuneExe" Source="$(var.SourceDir)\GitTune.exe" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="AppShortcut" Directory="AppMenuFolder" Guid="AF084B79-6615-4C8F-8E5A-9A4348424845">
+      <Shortcut Id="StartMenuShortcut"
+        Name="GitTune"
+        Description="View and edit your global Git identity"
+        Target="[INSTALLFOLDER]GitTune.exe"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="GitTuneIcon" />
+      <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\ZITStudio\GitTune"
+        Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+</Wix>
