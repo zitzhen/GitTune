@@ -38,3 +38,37 @@ jobs:
 
       - name: Build
         run: cargo build
+
+  # MSI/MSIX packaging is exercised on every push and pull request, using the
+  # exact script the release workflow uses: the MSIX is unpacked again, the MSI
+  # property table is re-read through the Windows Installer API and the payload
+  # is administrative-installed. A broken manifest, a missing asset or an
+  # invalid WiX source therefore fails here, not during a release.
+  windows-installers:
+    name: Windows installers (MSI + MSIX)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Build and verify MSI + MSIX
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-windows.ps1 -Verify
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Windows-Installers
+          path: |
+            dist/*.msi
+            dist/*.msix
+          retention-days: 7
