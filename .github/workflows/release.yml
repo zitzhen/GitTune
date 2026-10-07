@@ -61,11 +61,36 @@ jobs:
         shell: pwsh
         run: Compress-Archive target/release/GitTune.exe GitTune-${{ runner.os }}.zip
 
+      # ------------------------------------------------------------------
+      # Windows installers: MSIX (Store / sideload) and MSI (classic setup)
+      # ------------------------------------------------------------------
+      # Packaging (and its verification) lives in scripts/package-windows.ps1,
+      # so the CI workflow exercises the exact same code path as this release.
+      # Signing turns itself on when the MSIX_PFX_BASE64 secret is present.
+      - name: Build, verify and sign Windows installers (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSIX_PFX_BASE64: ${{ secrets.MSIX_PFX_BASE64 }}
+          MSIX_PFX_PASSWORD: ${{ secrets.MSIX_PFX_PASSWORD }}
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-windows.ps1 -Verify
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: GitTune-${{ runner.os }}
           path: GitTune-${{ runner.os }}.*
+
+      - name: Upload Windows installers (MSI + MSIX)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Windows-Installers
+          path: |
+            dist/*.msi
+            dist/*.msix
+            dist/*.cer
+          if-no-files-found: error
 
   release:
     name: Publish GitHub Release
@@ -81,6 +106,9 @@ jobs:
           pattern: GitTune-*
           merge-multiple: true
           path: dist
+
+      - name: Show release assets
+        run: ls -lh dist
 
       - name: Create release
         uses: softprops/action-gh-release@v2
