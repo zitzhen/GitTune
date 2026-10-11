@@ -92,9 +92,75 @@ jobs:
             dist/*.cer
           if-no-files-found: error
 
+  # Builds the snap that ships with the release. Its artifact is named
+  # `GitTune-Linux-Snap` so that the release job below -- which downloads every
+  # `GitTune-*` artifact into dist/ and publishes dist/* -- picks it up
+  # automatically and attaches it to the release next to the tarballs and
+  # installers.
+  #
+  # Pinned to 24.04 for the same reasons as in build.yml: base is core24, so
+  # the host must match for snapcraft's destructive mode and to keep the
+  # binary's glibc compatible with the base snap.
+  snap:
+    name: Snap package (amd64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches snapcraft.yaml version
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 '^version:' snap/snapcraft.yaml | awk -F"'" '{print $2}')
+          echo "snapcraft.yaml version: $VERSION / tag: $TAG"
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match snapcraft.yaml version $VERSION"
+            exit 1
+          fi
+
+      - name: Install Slint system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libfontconfig-dev libgl1-mesa-dev libwayland-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Stage the release binary for the snap part
+        run: |
+          mkdir -p snap/prebuilt
+          install -m 0755 target/release/GitTune snap/prebuilt/GitTune
+
+      # `snap wait` is a no-op once the runner's snapd has seeded, but it
+      # removes a class of flaky 'snapd is not seeded' failures.
+      - name: Install snapcraft
+        run: |
+          sudo snap wait system seed.loaded
+          sudo snap install snapcraft --classic
+
+      - name: Build snap
+        run: sudo snapcraft pack --destructive-mode
+
+      # The file keeps snapcraft's canonical name (git-tune_<version>_amd64.snap)
+      # so it can be installed directly with `snap install --dangerous`.
+      - name: Upload snap
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-Snap
+          path: "*.snap"
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, snap]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -72,3 +72,59 @@ jobs:
             dist/*.msi
             dist/*.msix
           retention-days: 7
+
+  # The snap bundles the release binary together with git and gnupg, so this
+  # job exercises the exact packaging path a release uses on every push and
+  # pull request: a broken snapcraft.yaml, a stale layout or a missing staged
+  # binary fails here instead of during a release.
+  #
+  # Runs on 24.04 on purpose, not ubuntu-latest. The snap targets the core24
+  # base snap, and the runner has to be 24.04 for two reasons: snapcraft
+  # refuses `--destructive-mode` when the host release differs from the base,
+  # and the binary built here links against the host's glibc, which must not be
+  # newer than the one shipped by core24.
+  snap:
+    name: Snap package (amd64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Slint system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libfontconfig-dev libgl1-mesa-dev libwayland-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Stage the release binary for the snap part
+        run: |
+          mkdir -p snap/prebuilt
+          install -m 0755 target/release/GitTune snap/prebuilt/GitTune
+
+      # `snap wait` is a no-op once the runner's snapd has seeded, but it
+      # removes a class of flaky 'snapd is not seeded' failures.
+      - name: Install snapcraft
+        run: |
+          sudo snap wait system seed.loaded
+          sudo snap install snapcraft --classic
+
+      - name: Build snap
+        run: sudo snapcraft pack --destructive-mode
+
+      - name: Upload snap
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-Snap
+          path: "*.snap"
+          if-no-files-found: error
+          retention-days: 7
