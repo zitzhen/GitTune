@@ -40,20 +40,51 @@ apps:
       GIT_EXEC_PATH: $SNAP/usr/lib/git-core
       GIT_TEMPLATE_DIR: $SNAP/usr/share/git-core/templates
       GIT_CONFIG_NOSYSTEM: "1"
-      GNUPGHOME: $HOME/.gnupg
+      # snapd re-points HOME at the per-snap data directory ($SNAP_USER_DATA)
+      # for strict snaps, and the GNOME extension's desktop-launch moves
+      # XDG_CONFIG_HOME in there too. Left alone, `git config --global` would
+      # therefore read and write ~/snap/git-tune/current/.gitconfig instead of
+      # the user's file (git falls back to $XDG_CONFIG_HOME/git/config when
+      # ~/.gitconfig does not exist). Pin both paths to the real home with
+      # $SNAP_REAL_HOME, which snapd always sets to it.
+      GIT_CONFIG_GLOBAL: $SNAP_REAL_HOME/.gitconfig
+      GNUPGHOME: $SNAP_REAL_HOME/.gnupg
+
+# gnupg locates its helpers through the compile-time bindir (/usr/bin), which
+# inside the snap resolves to the core24 base -- and core24 ships no gpg-agent,
+# so `gpg --list-secret-keys` fails with "failed to start gpg-agent". Bind the
+# snap's own helpers onto those paths. These are individual files, so they must
+# use `bind-file`; a plain `bind` is for directories and snapd rejects it with
+# "cannot use ... as bind-mount source: not a directory".
+layout:
+  /usr/bin/gpg-agent:
+    bind-file: $SNAP/usr/bin/gpg-agent
+  /usr/bin/dirmngr:
+    bind-file: $SNAP/usr/bin/dirmngr
+  /usr/bin/gpgconf:
+    bind-file: $SNAP/usr/bin/gpgconf
+  # The mesa-2404 content snap supplies the X11 locale data, and every
+  # xx_YY.UTF-8/Compose in it does
+  #   include "/usr/share/X11/locale/en_US.UTF-8/Compose"
+  # by absolute path. Inside the snap that lands on the core24 base, which has
+  # no /usr/share/X11 at all, so xkbcommon fails to parse the Compose file at
+  # startup ("failed to open included Compose file ... No such file or
+  # directory"). Bind the content snap's locale directory onto that path.
+  /usr/share/X11/locale:
+    bind: $SNAP/gpu-2404/usr/share/X11/locale
 
 plugs:
   # Strict confinement denies the dotfiles in $HOME, so the paths GitTune
-  # needs are declared as personal-files. snapd never auto-connects these
-  # without store vetting; connect them by hand after installing.
+  # needs are declared as personal-files. In an interface declaration $HOME is
+  # the user's real home (AppArmor's @{HOME}), not the snap's HOME. snapd
+  # never auto-connects these without store vetting; connect them by hand
+  # after installing.
   dot-gitconfig:
     interface: personal-files
     read:
       - $HOME/.gitconfig
-      - $HOME/.config/git
     write:
       - $HOME/.gitconfig
-      - $HOME/.config/git
   dot-gnupg:
     interface: personal-files
     read:
