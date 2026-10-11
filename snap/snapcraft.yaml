@@ -95,9 +95,11 @@ plugs:
 parts:
   git-tune:
     plugin: dump
-    # The release binary is produced in a core24 (Ubuntu 24.04) container so
-    # that it links against the glibc shipped by the core24 base snap.
-    source: .snapwork/prebuilt
+    # The release binary is staged here before snapcraft runs: it is built on
+    # an Ubuntu 24.04 host (see .github/workflows/build.yml) so that it links
+    # against the glibc shipped by the core24 base snap. The directory is not
+    # tracked, only its contents at build time.
+    source: snap/prebuilt
     organize:
       GitTune: bin/GitTune
     stage-packages:
