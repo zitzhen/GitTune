@@ -1,0 +1,85 @@
+name: git-tune
+title: GitTune
+base: core24
+version: '1.3.4'
+summary: View and edit your global git identity
+description: |
+  GitTune is a small desktop tool to view and edit your global git identity —
+  because tuning git should be as easy as tuning a guitar.
+
+  Name, email, signing key, default branch, GPG signing switches and the
+  sendemail settings are edited through the `git config --global` CLI, never
+  by rewriting `~/.gitconfig` directly. Local GPG secret keys are listed
+  through `gpg --list-secret-keys`.
+
+  Because the snap is strictly confined, the `dot-gitconfig` and `dot-gnupg`
+  plugs have to be connected once after installation:
+
+      sudo snap connect git-tune:dot-gitconfig
+      sudo snap connect git-tune:dot-gnupg
+license: MIT
+contact: https://github.com/zitzhen/GitTune
+issues: https://github.com/zitzhen/GitTune/issues
+source-code: https://github.com/zitzhen/GitTune
+website: https://github.com/zitzhen/GitTune
+grade: stable
+confinement: strict
+icon: snap/gui/git-tune.png
+
+apps:
+  git-tune:
+    command: bin/GitTune
+    extensions: [gnome]
+    plugs:
+      - home
+      - dot-gitconfig
+      - dot-gnupg
+    environment:
+      # `git` is bundled in the snap, so point it at its own exec path and
+      # template directory instead of the (absent) /usr/lib/git-core.
+      GIT_EXEC_PATH: $SNAP/usr/lib/git-core
+      GIT_TEMPLATE_DIR: $SNAP/usr/share/git-core/templates
+      GIT_CONFIG_NOSYSTEM: "1"
+      GNUPGHOME: $HOME/.gnupg
+
+plugs:
+  # Strict confinement denies the dotfiles in $HOME, so the paths GitTune
+  # needs are declared as personal-files. snapd never auto-connects these
+  # without store vetting; connect them by hand after installing.
+  dot-gitconfig:
+    interface: personal-files
+    read:
+      - $HOME/.gitconfig
+      - $HOME/.config/git
+    write:
+      - $HOME/.gitconfig
+      - $HOME/.config/git
+  dot-gnupg:
+    interface: personal-files
+    read:
+      - $HOME/.gnupg
+    write:
+      - $HOME/.gnupg
+
+parts:
+  git-tune:
+    plugin: dump
+    # The release binary is produced in a core24 (Ubuntu 24.04) container so
+    # that it links against the glibc shipped by the core24 base snap.
+    source: .snapwork/prebuilt
+    organize:
+      GitTune: bin/GitTune
+    stage-packages:
+      - git
+      - gnupg
+    prime:
+      - bin/GitTune
+      - usr/bin/**
+      - usr/lib/**
+      - usr/share/git-core/**
+      - usr/share/gnupg/**
+      - etc/**
+      - -usr/share/doc
+      - -usr/share/man
+      - -usr/share/lintian
+      - -usr/lib/*/libgit*.a

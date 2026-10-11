@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=GitTune
+GenericName=Git Identity Editor
+Comment=View and edit your global git identity
+Exec=git-tune
+Icon=${SNAP}/meta/gui/git-tune.png
+Terminal=false
+Type=Application
+Categories=Development;Utility;
+Keywords=git;config;identity;gpg;

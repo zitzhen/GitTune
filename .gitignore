@@ -1,1 +1,10 @@
 /target
+
+# Snap build output
+*.snap
+*.comp
+
+# Local snap build scaffolding: the Ubuntu 24.04 builder container, the
+# generated (extension-expanded) manifest and the prebuilt binary. These are
+# host-specific; the real packaging source lives in snap/.
+/.snapwork/
