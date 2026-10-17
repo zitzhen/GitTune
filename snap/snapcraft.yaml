@@ -1,7 +1,7 @@
 name: git-tune
 title: GitTune
 base: core24
-version: '1.4.0'
+version: '1.5.0'
 summary: View and edit your global git identity
 description: |
   GitTune is a small desktop tool to view and edit your global git identity —
