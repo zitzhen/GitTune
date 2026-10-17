@@ -25,6 +25,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
     let core_editor = gitconfig::read("core.editor").unwrap_or_default();
+    let credential_helper = gitconfig::read("credential.helper").unwrap_or_default();
     let http_proxy = gitconfig::read("http.proxy").unwrap_or_default();
     let https_proxy = gitconfig::read("https.proxy").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
@@ -35,6 +36,44 @@ fn main() -> Result<(), slint::PlatformError> {
 
     window.set_user_name(name.into());
     window.set_user_email(email.into());
+
+    // `credential.helper` takes a helper name plus optional arguments. Offer
+    // only helpers that actually exist on this platform: `wincred` is
+    // Windows-only, `osxkeychain` macOS-only, and `libsecret`/`cache` are
+    // Unix-only. `store` and Git Credential Manager work everywhere.
+    // `Custom...` covers anything else; an existing value outside the list is
+    // preselected there so it is never lost.
+    let known_credential_helpers: &[&str] = if cfg!(target_os = "windows") {
+        &["manager", "manager-core", "wincred", "store"]
+    } else if cfg!(target_os = "macos") {
+        &["manager", "manager-core", "osxkeychain", "cache", "store"]
+    } else {
+        &["manager", "manager-core", "libsecret", "cache", "store"]
+    };
+    let mut credential_helper_options: Vec<slint::SharedString> =
+        vec!["Default (unset)".into()];
+    credential_helper_options.extend(
+        known_credential_helpers
+            .iter()
+            .map(|helper| slint::SharedString::from(*helper)),
+    );
+    credential_helper_options.push("Custom...".into());
+    window.set_credential_helper_options(slint::ModelRc::new(slint::VecModel::from(
+        credential_helper_options,
+    )));
+
+    let mut credential_helper_selected = slint::SharedString::from("Default (unset)");
+    let mut credential_helper_custom = slint::SharedString::new();
+    if !credential_helper.is_empty() {
+        if known_credential_helpers.contains(&credential_helper.as_str()) {
+            credential_helper_selected = credential_helper.as_str().into();
+        } else {
+            credential_helper_selected = "Custom...".into();
+            credential_helper_custom = credential_helper.as_str().into();
+        }
+    }
+    window.set_credential_helper_selected_value(credential_helper_selected);
+    window.set_credential_helper_custom_value(credential_helper_custom);
     window.set_commit_gpgsign(commit_gpgsign);
     window.set_tag_gpgsign(tag_gpgsign);
 
@@ -65,29 +104,25 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_quotepath_selected_value(quotepath_selected);
 
     // `core.editor` is free-form, so offer the common editors in a list with
-    // `Custom...` at the bottom. An unset key is shown as its own choice so
-    // the app never invents a value.
-    const KNOWN_EDITORS: [&str; 6] =
-        ["vim", "nano", "emacs", "code --wait", "subl --wait", "notepad"];
-    let editor_options: Vec<slint::SharedString> = [
-        "Default (unset)",
-        "vim",
-        "nano",
-        "emacs",
-        "code --wait",
-        "subl --wait",
-        "notepad",
-        "Custom...",
-    ]
-    .into_iter()
-    .map(slint::SharedString::from)
-    .collect();
+    // `Custom...` at the bottom. `notepad` only makes sense on Windows. An
+    // unset key is shown as its own choice so the app never invents a value.
+    let mut known_editors: Vec<&str> = vec!["vim", "nano", "emacs", "code --wait", "subl --wait"];
+    if cfg!(target_os = "windows") {
+        known_editors.push("notepad");
+    }
+    let mut editor_options: Vec<slint::SharedString> = vec!["Default (unset)".into()];
+    editor_options.extend(
+        known_editors
+            .iter()
+            .map(|editor| slint::SharedString::from(*editor)),
+    );
+    editor_options.push("Custom...".into());
     window.set_core_editor_options(slint::ModelRc::new(slint::VecModel::from(editor_options)));
 
     let mut editor_selected = slint::SharedString::from("Default (unset)");
     let mut editor_custom = slint::SharedString::new();
     if !core_editor.is_empty() {
-        if KNOWN_EDITORS.contains(&core_editor.as_str()) {
+        if known_editors.contains(&core_editor.as_str()) {
             editor_selected = core_editor.as_str().into();
         } else {
             editor_selected = "Custom...".into();
@@ -210,6 +245,14 @@ fn main() -> Result<(), slint::PlatformError> {
         };
         let http_proxy = window.get_http_proxy();
         let https_proxy = window.get_https_proxy();
+        let credential_helper =
+            if window.get_credential_helper_selected_value() == custom_label {
+                window.get_credential_helper_custom_value()
+            } else if window.get_credential_helper_selected_value() == "Default (unset)" {
+                slint::SharedString::new()
+            } else {
+                window.get_credential_helper_selected_value()
+            };
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -262,6 +305,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     gitconfig::unset("https.proxy")
                 } else {
                     gitconfig::write("https.proxy", &https_proxy)
+                }
+            })
+            .and_then(|()| {
+                if credential_helper.is_empty() {
+                    gitconfig::unset("credential.helper")
+                } else {
+                    gitconfig::write("credential.helper", &credential_helper)
                 }
             })
             .and_then(|()| {

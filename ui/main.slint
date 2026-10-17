@@ -164,6 +164,10 @@ export component MainWindow inherits Window {
     in-out property <string> user-name;
     in-out property <string> user-email;
 
+    in property <[string]> credential-helper-options;
+    in-out property <string> credential-helper-selected-value;
+    in-out property <string> credential-helper-custom-value;
+
     in property <[string]> gpg-options;
     in-out property <string> gpg-selected-value;
     in-out property <string> gpg-custom-value;
@@ -202,6 +206,7 @@ export component MainWindow inherits Window {
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
     property <bool> core-editor-is-custom: root.core-editor-selected-value == "Custom...";
+    property <bool> credential-helper-is-custom: root.credential-helper-selected-value == "Custom...";
     in-out property <int> current-page: 0;
 
     property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : root.current-page == 2 ? "Email Sending" : "Proxy";
@@ -354,6 +359,37 @@ export component MainWindow inherits Window {
                                 LineEdit {
                                     placeholder-text: "user.email";
                                     text <=> root.user-email;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 0: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Credential helper (credential.helper)";
+                                }
+
+                                FieldLabel {
+                                    text: "Program Git uses to store and reuse credentials for HTTPS remotes.";
+                                    wrap: word-wrap;
+                                }
+
+                                ComboBox {
+                                    model: root.credential-helper-options;
+                                    current-value <=> root.credential-helper-selected-value;
+                                }
+
+                                if root.credential-helper-is-custom: LineEdit {
+                                    placeholder-text: "e.g. cache --timeout=3600";
+                                    text <=> root.credential-helper-custom-value;
+                                }
+
+                                FieldLabel {
+                                    text: "Choose Default (unset) to remove the setting, or Custom... to enter a helper command with arguments.";
+                                    wrap: word-wrap;
                                 }
                             }
                         }
