@@ -53,6 +53,52 @@ pub fn write(key: &str, value: &str) -> Result<(), String> {
     }
 }
 
+/// Read all values of a multi-valued key from the global git configuration.
+///
+/// Returns an empty vector when the key is not set (git exits with 1).
+pub fn read_all(key: &str) -> Result<Vec<String>, String> {
+    let output = git(&["config", "--global", "--get-all", key])
+        .output()
+        .map_err(|e| format!("failed to run git: {e}"))?;
+
+    match output.status.code() {
+        Some(0) => Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_string)
+            .collect()),
+        Some(1) => Ok(Vec::new()),
+        _ => Err(String::from_utf8_lossy(&output.stderr).trim().to_string()),
+    }
+}
+
+/// Add a value to a multi-valued key in the global git configuration.
+pub fn add(key: &str, value: &str) -> Result<(), String> {
+    let output = git(&["config", "--global", "--add", key, value])
+        .output()
+        .map_err(|e| format!("failed to run git: {e}"))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+/// Remove every value of a multi-valued key from the global git configuration.
+///
+/// Exit code 5 (key does not exist) is treated as success.
+pub fn unset_all(key: &str) -> Result<(), String> {
+    let output = git(&["config", "--global", "--unset-all", key])
+        .output()
+        .map_err(|e| format!("failed to run git: {e}"))?;
+
+    if output.status.success() || output.status.code() == Some(5) {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
 /// Remove a key from the global git configuration.
 ///
 /// Exit code 5 (key does not exist) is treated as success.
