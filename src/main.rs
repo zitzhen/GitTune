@@ -24,6 +24,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let tag_gpgsign = gitconfig::read("tag.gpgsign").unwrap_or_default() == "true";
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
+    let core_editor = gitconfig::read("core.editor").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
     let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
     let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
@@ -60,6 +61,7 @@ fn main() -> Result<(), slint::PlatformError> {
         _ => "unset".into(),
     };
     window.set_quotepath_selected_value(quotepath_selected);
+    window.set_core_editor(core_editor.into());
 
     window.set_sendemail_from(smtp_from.into());
     window.set_sendemail_smtpuser(smtp_user.into());
@@ -162,6 +164,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let unset_label = slint::SharedString::from("unset");
         let autocrlf_val = window.get_autocrlf_selected_value();
         let quotepath_val = window.get_quotepath_selected_value();
+        let core_editor = window.get_core_editor();
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -193,6 +196,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     gitconfig::unset("core.quotepath")
                 } else {
                     gitconfig::write("core.quotepath", &quotepath_val)
+                }
+            })
+            .and_then(|()| {
+                if core_editor.is_empty() {
+                    gitconfig::unset("core.editor")
+                } else {
+                    gitconfig::write("core.editor", &core_editor)
                 }
             })
             .and_then(|()| {
