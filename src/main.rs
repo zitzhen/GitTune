@@ -25,6 +25,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
     let core_editor = gitconfig::read("core.editor").unwrap_or_default();
+    let credential_helper = gitconfig::read("credential.helper").unwrap_or_default();
     let http_proxy = gitconfig::read("http.proxy").unwrap_or_default();
     let https_proxy = gitconfig::read("https.proxy").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
@@ -35,6 +36,44 @@ fn main() -> Result<(), slint::PlatformError> {
 
     window.set_user_name(name.into());
     window.set_user_email(email.into());
+
+    // `credential.helper` takes a helper name plus optional arguments. Offer
+    // the common helpers and let `Custom...` cover anything else. `Default
+    // (unset)` removes the key so system/global fallbacks can apply.
+    const KNOWN_CREDENTIAL_HELPERS: [&str; 8] = [
+        "cache",
+        "store",
+        "manager",
+        "manager-core",
+        "osxkeychain",
+        "libsecret",
+        "wincred",
+        "gpg",
+    ];
+    let mut credential_helper_options: Vec<slint::SharedString> =
+        vec!["Default (unset)".into()];
+    credential_helper_options.extend(
+        KNOWN_CREDENTIAL_HELPERS
+            .iter()
+            .map(|helper| slint::SharedString::from(*helper)),
+    );
+    credential_helper_options.push("Custom...".into());
+    window.set_credential_helper_options(slint::ModelRc::new(slint::VecModel::from(
+        credential_helper_options,
+    )));
+
+    let mut credential_helper_selected = slint::SharedString::from("Default (unset)");
+    let mut credential_helper_custom = slint::SharedString::new();
+    if !credential_helper.is_empty() {
+        if KNOWN_CREDENTIAL_HELPERS.contains(&credential_helper.as_str()) {
+            credential_helper_selected = credential_helper.as_str().into();
+        } else {
+            credential_helper_selected = "Custom...".into();
+            credential_helper_custom = credential_helper.as_str().into();
+        }
+    }
+    window.set_credential_helper_selected_value(credential_helper_selected);
+    window.set_credential_helper_custom_value(credential_helper_custom);
     window.set_commit_gpgsign(commit_gpgsign);
     window.set_tag_gpgsign(tag_gpgsign);
 
@@ -210,6 +249,14 @@ fn main() -> Result<(), slint::PlatformError> {
         };
         let http_proxy = window.get_http_proxy();
         let https_proxy = window.get_https_proxy();
+        let credential_helper =
+            if window.get_credential_helper_selected_value() == custom_label {
+                window.get_credential_helper_custom_value()
+            } else if window.get_credential_helper_selected_value() == "Default (unset)" {
+                slint::SharedString::new()
+            } else {
+                window.get_credential_helper_selected_value()
+            };
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -262,6 +309,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     gitconfig::unset("https.proxy")
                 } else {
                     gitconfig::write("https.proxy", &https_proxy)
+                }
+            })
+            .and_then(|()| {
+                if credential_helper.is_empty() {
+                    gitconfig::unset("credential.helper")
+                } else {
+                    gitconfig::write("credential.helper", &credential_helper)
                 }
             })
             .and_then(|()| {
