@@ -178,7 +178,8 @@ export component MainWindow inherits Window {
     in property <[string]> autocrlf-options;
     in-out property <string> autocrlf-selected-value;
 
-    in-out property <bool> quotepath;
+    in property <[string]> quotepath-options;
+    in-out property <string> quotepath-selected-value;
 
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
@@ -425,7 +426,7 @@ export component MainWindow inherits Window {
                                 }
 
                                 FieldLabel {
-                                    text: "false: never convert · input: convert on commit only · true: convert on checkout and commit";
+                                    text: "unset: keep Git's default (false) · false: never convert · input: convert on commit only · true: convert on checkout and commit";
                                     wrap: word-wrap;
                                 }
                             }
@@ -434,21 +435,23 @@ export component MainWindow inherits Window {
                         if root.current-page == 1: Card {
                             VerticalBox {
                                 padding: 22px;
-                                padding-top: 14px;
-                                padding-bottom: 14px;
-                                spacing: 4px;
+                                spacing: 10px;
 
                                 SectionTitle {
                                     text: "Paths (core.quotepath)";
                                 }
 
-                                ToggleRow {
-                                    label: "Escape non-ASCII characters in paths";
-                                    checked <=> root.quotepath;
+                                FieldLabel {
+                                    text: "How Git prints non-ASCII path names in status, diff and log output.";
+                                }
+
+                                Segmented {
+                                    options: root.quotepath-options;
+                                    value <=> root.quotepath-selected-value;
                                 }
 
                                 FieldLabel {
-                                    text: "When on, git prints non-ASCII path names as octal escapes; turn off to display them as UTF-8.";
+                                    text: "unset: keep Git's default (true) · true: escape non-ASCII paths · false: show them as UTF-8";
                                     wrap: word-wrap;
                                 }
                             }

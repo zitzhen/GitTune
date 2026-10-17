@@ -23,8 +23,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let commit_gpgsign = gitconfig::read("commit.gpgsign").unwrap_or_default() == "true";
     let tag_gpgsign = gitconfig::read("tag.gpgsign").unwrap_or_default() == "true";
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
-    // `core.quotepath` defaults to true when unset.
-    let quotepath = gitconfig::read("core.quotepath").unwrap_or_default() != "false";
+    let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
     let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
     let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
@@ -36,18 +35,31 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_commit_gpgsign(commit_gpgsign);
     window.set_tag_gpgsign(tag_gpgsign);
 
-    // `core.autocrlf` accepts `true`, `input` and `false`; git's own default
-    // when the key is unset is `false`, which is also what the UI shows.
+    // `core.autocrlf` accepts `true`, `input` and `false`. `unset` is shown
+    // explicitly so the app never pretends an unset key has a value; git's
+    // default when unset is `false`.
     let autocrlf_options: Vec<slint::SharedString> =
-        vec!["false".into(), "input".into(), "true".into()];
+        vec!["unset".into(), "false".into(), "input".into(), "true".into()];
     window.set_autocrlf_options(slint::ModelRc::new(slint::VecModel::from(autocrlf_options)));
     let autocrlf_selected: slint::SharedString = match autocrlf.as_str() {
         "true" => "true".into(),
         "input" => "input".into(),
-        _ => "false".into(),
+        "false" => "false".into(),
+        _ => "unset".into(),
     };
     window.set_autocrlf_selected_value(autocrlf_selected);
-    window.set_quotepath(quotepath);
+
+    // `core.quotepath` is a boolean, but also has an unset state (git's
+    // default is `true`); keep the three states distinct.
+    let quotepath_options: Vec<slint::SharedString> =
+        vec!["unset".into(), "true".into(), "false".into()];
+    window.set_quotepath_options(slint::ModelRc::new(slint::VecModel::from(quotepath_options)));
+    let quotepath_selected: slint::SharedString = match quotepath.as_str() {
+        "true" => "true".into(),
+        "false" => "false".into(),
+        _ => "unset".into(),
+    };
+    window.set_quotepath_selected_value(quotepath_selected);
 
     window.set_sendemail_from(smtp_from.into());
     window.set_sendemail_smtpuser(smtp_user.into());
@@ -147,8 +159,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let smtp_server = window.get_sendemail_smtpserver();
         let smtp_port = window.get_sendemail_smtpserverport();
         let smtp_enc = window.get_encryption_selected_value();
+        let unset_label = slint::SharedString::from("unset");
         let autocrlf_val = window.get_autocrlf_selected_value();
-        let quotepath = if window.get_quotepath() { "true" } else { "false" };
+        let quotepath_val = window.get_quotepath_selected_value();
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -168,8 +181,20 @@ fn main() -> Result<(), slint::PlatformError> {
             })
             .and_then(|()| gitconfig::write("commit.gpgsign", commit_gpg))
             .and_then(|()| gitconfig::write("tag.gpgsign", tag_gpg))
-            .and_then(|()| gitconfig::write("core.autocrlf", &autocrlf_val))
-            .and_then(|()| gitconfig::write("core.quotepath", quotepath))
+            .and_then(|()| {
+                if autocrlf_val == unset_label {
+                    gitconfig::unset("core.autocrlf")
+                } else {
+                    gitconfig::write("core.autocrlf", &autocrlf_val)
+                }
+            })
+            .and_then(|()| {
+                if quotepath_val == unset_label {
+                    gitconfig::unset("core.quotepath")
+                } else {
+                    gitconfig::write("core.quotepath", &quotepath_val)
+                }
+            })
             .and_then(|()| {
                 if smtp_from.is_empty() {
                     gitconfig::unset("sendemail.from")
