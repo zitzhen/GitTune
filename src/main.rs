@@ -25,6 +25,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
     let core_editor = gitconfig::read("core.editor").unwrap_or_default();
+    let http_proxy = gitconfig::read("http.proxy").unwrap_or_default();
+    let https_proxy = gitconfig::read("https.proxy").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
     let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
     let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
@@ -94,6 +96,9 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     window.set_core_editor_selected_value(editor_selected);
     window.set_core_editor_custom_value(editor_custom);
+
+    window.set_http_proxy(http_proxy.into());
+    window.set_https_proxy(https_proxy.into());
 
     window.set_sendemail_from(smtp_from.into());
     window.set_sendemail_smtpuser(smtp_user.into());
@@ -203,6 +208,8 @@ fn main() -> Result<(), slint::PlatformError> {
         } else {
             window.get_core_editor_selected_value()
         };
+        let http_proxy = window.get_http_proxy();
+        let https_proxy = window.get_https_proxy();
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -241,6 +248,20 @@ fn main() -> Result<(), slint::PlatformError> {
                     gitconfig::unset("core.editor")
                 } else {
                     gitconfig::write("core.editor", &core_editor)
+                }
+            })
+            .and_then(|()| {
+                if http_proxy.is_empty() {
+                    gitconfig::unset("http.proxy")
+                } else {
+                    gitconfig::write("http.proxy", &http_proxy)
+                }
+            })
+            .and_then(|()| {
+                if https_proxy.is_empty() {
+                    gitconfig::unset("https.proxy")
+                } else {
+                    gitconfig::write("https.proxy", &https_proxy)
                 }
             })
             .and_then(|()| {
