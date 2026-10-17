@@ -22,6 +22,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let default_branch = gitconfig::read("init.defaultBranch").unwrap_or_default();
     let commit_gpgsign = gitconfig::read("commit.gpgsign").unwrap_or_default() == "true";
     let tag_gpgsign = gitconfig::read("tag.gpgsign").unwrap_or_default() == "true";
+    let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
     let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
     let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
@@ -32,6 +33,18 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_user_email(email.into());
     window.set_commit_gpgsign(commit_gpgsign);
     window.set_tag_gpgsign(tag_gpgsign);
+
+    // `core.autocrlf` accepts `true`, `input` and `false`; git's own default
+    // when the key is unset is `false`, which is also what the UI shows.
+    let autocrlf_options: Vec<slint::SharedString> =
+        vec!["false".into(), "input".into(), "true".into()];
+    window.set_autocrlf_options(slint::ModelRc::new(slint::VecModel::from(autocrlf_options)));
+    let autocrlf_selected: slint::SharedString = match autocrlf.as_str() {
+        "true" => "true".into(),
+        "input" => "input".into(),
+        _ => "false".into(),
+    };
+    window.set_autocrlf_selected_value(autocrlf_selected);
 
     window.set_sendemail_from(smtp_from.into());
     window.set_sendemail_smtpuser(smtp_user.into());
@@ -131,6 +144,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let smtp_server = window.get_sendemail_smtpserver();
         let smtp_port = window.get_sendemail_smtpserverport();
         let smtp_enc = window.get_encryption_selected_value();
+        let autocrlf_val = window.get_autocrlf_selected_value();
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -150,6 +164,7 @@ fn main() -> Result<(), slint::PlatformError> {
             })
             .and_then(|()| gitconfig::write("commit.gpgsign", commit_gpg))
             .and_then(|()| gitconfig::write("tag.gpgsign", tag_gpg))
+            .and_then(|()| gitconfig::write("core.autocrlf", &autocrlf_val))
             .and_then(|()| {
                 if smtp_from.is_empty() {
                     gitconfig::unset("sendemail.from")

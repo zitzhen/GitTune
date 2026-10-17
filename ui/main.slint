@@ -175,6 +175,9 @@ export component MainWindow inherits Window {
     in-out property <bool> commit-gpgsign;
     in-out property <bool> tag-gpgsign;
 
+    in property <[string]> autocrlf-options;
+    in-out property <string> autocrlf-selected-value;
+
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
     in-out property <string> sendemail-smtpserver;
@@ -397,6 +400,31 @@ export component MainWindow inherits Window {
                                 ToggleRow {
                                     label: "Sign tags with GPG";
                                     checked <=> root.tag-gpgsign;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Line endings (core.autocrlf)";
+                                }
+
+                                FieldLabel {
+                                    text: "How Git converts line endings between the repository and the working tree.";
+                                }
+
+                                Segmented {
+                                    options: root.autocrlf-options;
+                                    value <=> root.autocrlf-selected-value;
+                                }
+
+                                FieldLabel {
+                                    text: "false: never convert · input: convert on commit only · true: convert on checkout and commit";
+                                    wrap: word-wrap;
                                 }
                             }
                         }
