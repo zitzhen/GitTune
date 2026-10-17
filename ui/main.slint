@@ -203,13 +203,22 @@ export component MainWindow inherits Window {
     in property <string> status-text;
     callback save-clicked();
 
+    in-out property <[string]> safe-directories;
+    in-out property <string> safe-directory-input;
+    in-out property <bool> show-safe-warning;
+    callback browse-folder();
+    callback add-safe-directory();
+    callback remove-safe-directory(int);
+    callback confirm-safe-warning();
+    callback dismiss-safe-warning();
+
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
     property <bool> core-editor-is-custom: root.core-editor-selected-value == "Custom...";
     property <bool> credential-helper-is-custom: root.credential-helper-selected-value == "Custom...";
     in-out property <int> current-page: 0;
 
-    property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : root.current-page == 2 ? "Email Sending" : "Proxy";
+    property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : root.current-page == 2 ? "Email Sending" : root.current-page == 3 ? "Proxy" : "Safe Directories";
 
     HorizontalLayout {
         // ── Sidebar ──
@@ -280,6 +289,15 @@ export component MainWindow inherits Window {
                     selected: root.current-page == 3;
                     clicked => {
                         root.current-page = 3;
+                    }
+                }
+
+                NavItem {
+                    icon: "▤";
+                    label: "Safe Directories";
+                    selected: root.current-page == 4;
+                    clicked => {
+                        root.current-page = 4;
                     }
                 }
 
@@ -668,6 +686,106 @@ export component MainWindow inherits Window {
                                 }
                             }
                         }
+
+                        // ── Page: Safe Directories ──
+                        if root.current-page == 4: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Trusted repositories (safe.directory)";
+                                }
+
+                                FieldLabel {
+                                    text: "Git refuses to operate on repositories it does not trust, for example folders owned by another user or stored on removable/network drives. Add the repository folders you trust.";
+                                    wrap: word-wrap;
+                                }
+
+                                VerticalBox {
+                                    spacing: 6px;
+
+                                    if root.safe-directories.length == 0: Text {
+                                        text: "No trusted folders configured.";
+                                        color: Adw.text-dim;
+                                        font-size: 13px;
+                                    }
+
+                                    for directory[index] in root.safe-directories: Rectangle {
+                                        height: 38px;
+                                        border-radius: 8px;
+                                        background: Adw.well-bg;
+
+                                        HorizontalLayout {
+                                            padding-left: 12px;
+                                            padding-right: 6px;
+                                            spacing: 8px;
+
+                                            Text {
+                                                text: directory;
+                                                color: Adw.text;
+                                                font-size: 13px;
+                                                vertical-alignment: center;
+                                                horizontal-stretch: 1;
+                                                overflow: elide;
+                                            }
+
+                                            Rectangle {
+                                                width: 28px;
+                                                height: 28px;
+                                                border-radius: 14px;
+                                                background: remove-touch.has-hover ? #ffffff18 : transparent;
+                                                y: (parent.height - self.height) / 2;
+
+                                                Text {
+                                                    text: "✕";
+                                                    color: Adw.text-dim;
+                                                    font-size: 12px;
+                                                    horizontal-alignment: center;
+                                                    vertical-alignment: center;
+                                                }
+
+                                                remove-touch := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.remove-safe-directory(index);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                HorizontalBox {
+                                    spacing: 10px;
+
+                                    LineEdit {
+                                        horizontal-stretch: 1;
+                                        placeholder-text: "Absolute path to the repository";
+                                        text <=> root.safe-directory-input;
+                                    }
+
+                                    Button {
+                                        text: "Browse…";
+                                        clicked => {
+                                            root.browse-folder();
+                                        }
+                                    }
+
+                                    Button {
+                                        text: "Add";
+                                        clicked => {
+                                            root.add-safe-directory();
+                                        }
+                                    }
+                                }
+
+                                FieldLabel {
+                                    text: "Pick a folder with Browse…, or type an absolute path and press Add. Changes are written when you click Save.";
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -694,6 +812,66 @@ export component MainWindow inherits Window {
                             clicked => {
                                 root.save-clicked();
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Wildcard warning overlay ──
+    if root.show-safe-warning: Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #00000099;
+
+        // Swallow clicks so the dialog behaves modally.
+        TouchArea {}
+
+        Rectangle {
+            width: 460px;
+            height: 220px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: Adw.card-bg;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #ffffff24;
+
+            VerticalBox {
+                padding: 22px;
+                spacing: 12px;
+
+                Text {
+                    text: "Wildcard in path";
+                    color: Adw.text;
+                    font-size: 18px;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: "This path contains \"*\". A wildcard makes Git trust every repository that matches the pattern, which weakens Git's safety checks. Only add it if you understand the risk.";
+                    color: Adw.text-dim;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                    vertical-stretch: 1;
+                }
+
+                HorizontalBox {
+                    alignment: end;
+                    spacing: 10px;
+
+                    Button {
+                        text: "Cancel";
+                        clicked => {
+                            root.dismiss-safe-warning();
+                        }
+                    }
+
+                    Button {
+                        text: "Add anyway";
+                        clicked => {
+                            root.confirm-safe-warning();
                         }
                     }
                 }
