@@ -178,6 +178,8 @@ export component MainWindow inherits Window {
     in property <[string]> autocrlf-options;
     in-out property <string> autocrlf-selected-value;
 
+    in-out property <bool> quotepath;
+
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
     in-out property <string> sendemail-smtpserver;
@@ -424,6 +426,29 @@ export component MainWindow inherits Window {
 
                                 FieldLabel {
                                     text: "false: never convert · input: convert on commit only · true: convert on checkout and commit";
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                padding-top: 14px;
+                                padding-bottom: 14px;
+                                spacing: 4px;
+
+                                SectionTitle {
+                                    text: "Paths (core.quotepath)";
+                                }
+
+                                ToggleRow {
+                                    label: "Escape non-ASCII characters in paths";
+                                    checked <=> root.quotepath;
+                                }
+
+                                FieldLabel {
+                                    text: "When on, git prints non-ASCII path names as octal escapes; turn off to display them as UTF-8.";
                                     wrap: word-wrap;
                                 }
                             }
