@@ -181,6 +181,10 @@ export component MainWindow inherits Window {
     in property <[string]> quotepath-options;
     in-out property <string> quotepath-selected-value;
 
+    in property <[string]> core-editor-options;
+    in-out property <string> core-editor-selected-value;
+    in-out property <string> core-editor-custom-value;
+
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
     in-out property <string> sendemail-smtpserver;
@@ -194,6 +198,7 @@ export component MainWindow inherits Window {
 
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
+    property <bool> core-editor-is-custom: root.core-editor-selected-value == "Custom...";
     in-out property <int> current-page: 0;
 
     property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : "Email Sending";
@@ -356,8 +361,7 @@ export component MainWindow inherits Window {
                                     current-value <=> root.gpg-selected-value;
                                 }
 
-                                LineEdit {
-                                    visible: root.gpg-is-custom;
+                                if root.gpg-is-custom: LineEdit {
                                     placeholder-text: "Key fingerprint or ID";
                                     text <=> root.gpg-custom-value;
                                 }
@@ -371,8 +375,7 @@ export component MainWindow inherits Window {
                                     current-value <=> root.branch-selected-value;
                                 }
 
-                                LineEdit {
-                                    visible: root.branch-is-custom;
+                                if root.branch-is-custom: LineEdit {
                                     placeholder-text: "branch name";
                                     text <=> root.branch-custom-value;
                                 }
@@ -452,6 +455,36 @@ export component MainWindow inherits Window {
 
                                 FieldLabel {
                                     text: "unset: keep Git's default (true) · true: escape non-ASCII paths · false: show them as UTF-8";
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Editor (core.editor)";
+                                }
+
+                                FieldLabel {
+                                    text: "Command Git launches to edit commit messages and other interactive input.";
+                                }
+
+                                ComboBox {
+                                    model: root.core-editor-options;
+                                    current-value <=> root.core-editor-selected-value;
+                                }
+
+                                if root.core-editor-is-custom: LineEdit {
+                                    placeholder-text: "e.g. code --wait";
+                                    text <=> root.core-editor-custom-value;
+                                }
+
+                                FieldLabel {
+                                    text: "Choose Default (unset) to remove the setting and use Git's default editor, or Custom... to enter another command.";
                                     wrap: word-wrap;
                                 }
                             }

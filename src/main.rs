@@ -24,6 +24,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let tag_gpgsign = gitconfig::read("tag.gpgsign").unwrap_or_default() == "true";
     let autocrlf = gitconfig::read("core.autocrlf").unwrap_or_default();
     let quotepath = gitconfig::read("core.quotepath").unwrap_or_default();
+    let core_editor = gitconfig::read("core.editor").unwrap_or_default();
     let smtp_from = gitconfig::read("sendemail.from").unwrap_or_default();
     let smtp_user = gitconfig::read("sendemail.smtpuser").unwrap_or_default();
     let smtp_server = gitconfig::read("sendemail.smtpserver").unwrap_or_default();
@@ -60,6 +61,39 @@ fn main() -> Result<(), slint::PlatformError> {
         _ => "unset".into(),
     };
     window.set_quotepath_selected_value(quotepath_selected);
+
+    // `core.editor` is free-form, so offer the common editors in a list with
+    // `Custom...` at the bottom. An unset key is shown as its own choice so
+    // the app never invents a value.
+    const KNOWN_EDITORS: [&str; 6] =
+        ["vim", "nano", "emacs", "code --wait", "subl --wait", "notepad"];
+    let editor_options: Vec<slint::SharedString> = [
+        "Default (unset)",
+        "vim",
+        "nano",
+        "emacs",
+        "code --wait",
+        "subl --wait",
+        "notepad",
+        "Custom...",
+    ]
+    .into_iter()
+    .map(slint::SharedString::from)
+    .collect();
+    window.set_core_editor_options(slint::ModelRc::new(slint::VecModel::from(editor_options)));
+
+    let mut editor_selected = slint::SharedString::from("Default (unset)");
+    let mut editor_custom = slint::SharedString::new();
+    if !core_editor.is_empty() {
+        if KNOWN_EDITORS.contains(&core_editor.as_str()) {
+            editor_selected = core_editor.as_str().into();
+        } else {
+            editor_selected = "Custom...".into();
+            editor_custom = core_editor.as_str().into();
+        }
+    }
+    window.set_core_editor_selected_value(editor_selected);
+    window.set_core_editor_custom_value(editor_custom);
 
     window.set_sendemail_from(smtp_from.into());
     window.set_sendemail_smtpuser(smtp_user.into());
@@ -162,6 +196,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let unset_label = slint::SharedString::from("unset");
         let autocrlf_val = window.get_autocrlf_selected_value();
         let quotepath_val = window.get_quotepath_selected_value();
+        let core_editor = if window.get_core_editor_selected_value() == custom_label {
+            window.get_core_editor_custom_value()
+        } else if window.get_core_editor_selected_value() == "Default (unset)" {
+            slint::SharedString::new()
+        } else {
+            window.get_core_editor_selected_value()
+        };
 
         let result = gitconfig::write("user.name", &name)
             .and_then(|()| gitconfig::write("user.email", &email))
@@ -193,6 +234,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     gitconfig::unset("core.quotepath")
                 } else {
                     gitconfig::write("core.quotepath", &quotepath_val)
+                }
+            })
+            .and_then(|()| {
+                if core_editor.is_empty() {
+                    gitconfig::unset("core.editor")
+                } else {
+                    gitconfig::write("core.editor", &core_editor)
                 }
             })
             .and_then(|()| {
