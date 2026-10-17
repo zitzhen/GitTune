@@ -181,7 +181,9 @@ export component MainWindow inherits Window {
     in property <[string]> quotepath-options;
     in-out property <string> quotepath-selected-value;
 
-    in-out property <string> core-editor;
+    in property <[string]> core-editor-options;
+    in-out property <string> core-editor-selected-value;
+    in-out property <string> core-editor-custom-value;
 
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
@@ -196,6 +198,7 @@ export component MainWindow inherits Window {
 
     property <bool> gpg-is-custom: root.gpg-selected-value == "Custom...";
     property <bool> branch-is-custom: root.branch-selected-value == "Custom...";
+    property <bool> core-editor-is-custom: root.core-editor-selected-value == "Custom...";
     in-out property <int> current-page: 0;
 
     property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : "Email Sending";
@@ -472,13 +475,20 @@ export component MainWindow inherits Window {
                                     text: "Command Git launches to edit commit messages and other interactive input.";
                                 }
 
+                                ComboBox {
+                                    model: root.core-editor-options;
+                                    current-value <=> root.core-editor-selected-value;
+                                }
+
                                 LineEdit {
-                                    placeholder-text: "e.g. vim, nano, code --wait";
-                                    text <=> root.core-editor;
+                                    visible: root.core-editor-is-custom;
+                                    placeholder-text: "e.g. code --wait";
+                                    text <=> root.core-editor-custom-value;
                                 }
 
                                 FieldLabel {
-                                    text: "Leave empty to remove the setting and use Git's default editor.";
+                                    text: "Choose Default (unset) to remove the setting and use Git's default editor, or Custom... to enter another command.";
+                                    wrap: word-wrap;
                                 }
                             }
                         }
