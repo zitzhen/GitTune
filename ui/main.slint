@@ -178,6 +178,9 @@ export component MainWindow inherits Window {
     in property <[string]> autocrlf-options;
     in-out property <string> autocrlf-selected-value;
 
+    in property <[string]> quotepath-options;
+    in-out property <string> quotepath-selected-value;
+
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
     in-out property <string> sendemail-smtpserver;
@@ -423,7 +426,32 @@ export component MainWindow inherits Window {
                                 }
 
                                 FieldLabel {
-                                    text: "false: never convert · input: convert on commit only · true: convert on checkout and commit";
+                                    text: "unset: keep Git's default (false) · false: never convert · input: convert on commit only · true: convert on checkout and commit";
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 1: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "Paths (core.quotepath)";
+                                }
+
+                                FieldLabel {
+                                    text: "How Git prints non-ASCII path names in status, diff and log output.";
+                                }
+
+                                Segmented {
+                                    options: root.quotepath-options;
+                                    value <=> root.quotepath-selected-value;
+                                }
+
+                                FieldLabel {
+                                    text: "unset: keep Git's default (true) · true: escape non-ASCII paths · false: show them as UTF-8";
                                     wrap: word-wrap;
                                 }
                             }
