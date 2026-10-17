@@ -185,6 +185,9 @@ export component MainWindow inherits Window {
     in-out property <string> core-editor-selected-value;
     in-out property <string> core-editor-custom-value;
 
+    in-out property <string> http-proxy;
+    in-out property <string> https-proxy;
+
     in-out property <string> sendemail-from;
     in-out property <string> sendemail-smtpuser;
     in-out property <string> sendemail-smtpserver;
@@ -201,7 +204,7 @@ export component MainWindow inherits Window {
     property <bool> core-editor-is-custom: root.core-editor-selected-value == "Custom...";
     in-out property <int> current-page: 0;
 
-    property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : "Email Sending";
+    property <string> page-title: root.current-page == 0 ? "Identity" : root.current-page == 1 ? "Signing & Defaults" : root.current-page == 2 ? "Email Sending" : "Proxy";
 
     HorizontalLayout {
         // ── Sidebar ──
@@ -263,6 +266,15 @@ export component MainWindow inherits Window {
                     selected: root.current-page == 2;
                     clicked => {
                         root.current-page = 2;
+                    }
+                }
+
+                NavItem {
+                    icon: "⇄";
+                    label: "Proxy";
+                    selected: root.current-page == 3;
+                    clicked => {
+                        root.current-page = 3;
                     }
                 }
 
@@ -564,6 +576,59 @@ export component MainWindow inherits Window {
                                 Segmented {
                                     options: root.encryption-options;
                                     value <=> root.encryption-selected-value;
+                                }
+                            }
+                        }
+
+                        // ── Page: Proxy ──
+                        if root.current-page == 3: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "HTTP proxy (http.proxy)";
+                                }
+
+                                FieldLabel {
+                                    text: "Proxy used for http:// requests. Supports http://, https:// and socks5:// URLs.";
+                                    wrap: word-wrap;
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "http://127.0.0.1:7890";
+                                    text <=> root.http-proxy;
+                                }
+
+                                FieldLabel {
+                                    text: "Leave empty to remove http.proxy.";
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        if root.current-page == 3: Card {
+                            VerticalBox {
+                                padding: 22px;
+                                spacing: 10px;
+
+                                SectionTitle {
+                                    text: "HTTPS proxy (https.proxy)";
+                                }
+
+                                FieldLabel {
+                                    text: "Overrides the proxy for https:// requests. When unset, Git falls back to http.proxy.";
+                                    wrap: word-wrap;
+                                }
+
+                                LineEdit {
+                                    placeholder-text: "http://127.0.0.1:7890";
+                                    text <=> root.https-proxy;
+                                }
+
+                                FieldLabel {
+                                    text: "Leave empty to remove https.proxy and fall back to http.proxy.";
+                                    wrap: word-wrap;
                                 }
                             }
                         }
