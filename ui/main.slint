@@ -361,8 +361,7 @@ export component MainWindow inherits Window {
                                     current-value <=> root.gpg-selected-value;
                                 }
 
-                                LineEdit {
-                                    visible: root.gpg-is-custom;
+                                if root.gpg-is-custom: LineEdit {
                                     placeholder-text: "Key fingerprint or ID";
                                     text <=> root.gpg-custom-value;
                                 }
@@ -376,8 +375,7 @@ export component MainWindow inherits Window {
                                     current-value <=> root.branch-selected-value;
                                 }
 
-                                LineEdit {
-                                    visible: root.branch-is-custom;
+                                if root.branch-is-custom: LineEdit {
                                     placeholder-text: "branch name";
                                     text <=> root.branch-custom-value;
                                 }
@@ -480,8 +478,7 @@ export component MainWindow inherits Window {
                                     current-value <=> root.core-editor-selected-value;
                                 }
 
-                                LineEdit {
-                                    visible: root.core-editor-is-custom;
+                                if root.core-editor-is-custom: LineEdit {
                                     placeholder-text: "e.g. code --wait";
                                     text <=> root.core-editor-custom-value;
                                 }
