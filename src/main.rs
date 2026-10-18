@@ -4,10 +4,16 @@
 // keep the console so `cargo run` still shows output.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod folder_picker;
 mod gitconfig;
 mod gpg;
 
 slint::include_modules!();
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use slint::Model;
 
 fn main() -> Result<(), slint::PlatformError> {
     let window = MainWindow::new()?;
@@ -200,10 +206,99 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_branch_selected_value(branch_selected);
     window.set_branch_custom_value(branch_custom);
 
+    // `safe.directory` is multi-valued. Keep the trusted list in a model so
+    // the UI can add and remove rows; Save rewrites every value.
+    let safe_directories: Rc<slint::VecModel<slint::SharedString>> = Rc::new(
+        gitconfig::read_all("safe.directory")
+            .unwrap_or_default()
+            .into_iter()
+            .map(slint::SharedString::from)
+            .collect::<Vec<_>>()
+            .into(),
+    );
+    window.set_safe_directories(slint::ModelRc::from(safe_directories.clone()));
+
+    // A path containing `*` is held here until the user confirms the warning.
+    let wildcard_pending: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+
+    {
+        let weak = window.as_weak();
+        window.on_browse_folder(move || {
+            let Some(window) = weak.upgrade() else { return };
+            match folder_picker::pick_folder() {
+                Ok(Some(path)) => window.set_safe_directory_input(path.into()),
+                Ok(None) => {}
+                Err(error) => {
+                    window.set_status_text(format!("Could not open folder picker: {error}").into())
+                }
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        let model = safe_directories.clone();
+        let pending = wildcard_pending.clone();
+        window.on_add_safe_directory(move || {
+            let Some(window) = weak.upgrade() else { return };
+            let path = window.get_safe_directory_input().trim().to_string();
+            if path.is_empty() {
+                return;
+            }
+            if path.contains('*') {
+                *pending.borrow_mut() = Some(path);
+                window.set_show_safe_warning(true);
+                return;
+            }
+            push_safe_directory(&model, path);
+            window.set_safe_directory_input("".into());
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        let model = safe_directories.clone();
+        let pending = wildcard_pending.clone();
+        window.on_confirm_safe_warning(move || {
+            let Some(window) = weak.upgrade() else { return };
+            if let Some(path) = pending.borrow_mut().take() {
+                push_safe_directory(&model, path);
+                window.set_safe_directory_input("".into());
+            }
+            window.set_show_safe_warning(false);
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        let pending = wildcard_pending.clone();
+        window.on_dismiss_safe_warning(move || {
+            pending.borrow_mut().take();
+            if let Some(window) = weak.upgrade() {
+                window.set_show_safe_warning(false);
+            }
+        });
+    }
+
+    {
+        let model = safe_directories.clone();
+        window.on_remove_safe_directory(move |index| {
+            let index = index.max(0) as usize;
+            if index < model.row_count() {
+                model.remove(index);
+            }
+        });
+    }
+
     // Save callback.
+    let safe_directories_for_save = safe_directories.clone();
     let weak = window.as_weak();
     window.on_save_clicked(move || {
         let window = weak.unwrap();
+        let safe_directory_values: Vec<String> = safe_directories_for_save
+            .iter()
+            .map(|value| value.to_string())
+            .collect();
         let name = window.get_user_name();
         let email = window.get_user_email();
 
@@ -315,6 +410,14 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             })
             .and_then(|()| {
+                gitconfig::unset_all("safe.directory").and_then(|()| {
+                    for directory in &safe_directory_values {
+                        gitconfig::add("safe.directory", directory)?;
+                    }
+                    Ok(())
+                })
+            })
+            .and_then(|()| {
                 if smtp_from.is_empty() {
                     gitconfig::unset("sendemail.from")
                 } else {
@@ -358,4 +461,12 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     window.run()
+}
+
+/// Append a trusted directory unless it is already in the list.
+fn push_safe_directory(model: &slint::VecModel<slint::SharedString>, path: String) {
+    if model.iter().any(|existing| existing.as_str() == path) {
+        return;
+    }
+    model.push(path.into());
 }
