@@ -1,0 +1,2 @@
+debian/tmp/usr/bin/git-tune usr/bin/
+debian/git-tune.desktop usr/share/applications/

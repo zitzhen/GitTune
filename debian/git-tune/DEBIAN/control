@@ -1,0 +1,11 @@
+Package: git-tune
+Version: 1.6.2-1
+Architecture: amd64
+Maintainer: Oliver Lin <oliver@liuxiaozhen.dev>
+Installed-Size: 23520
+Depends: libc6 (>= 2.43), libfontconfig1 (>= 2.12.6), libgcc-s1 (>= 4.2), git
+Section: devel
+Priority: optional
+Description: View and edit your global git identity
+ GitTune is a desktop application for viewing and editing
+ your global Git identity.

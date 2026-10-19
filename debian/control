@@ -1,0 +1,29 @@
+Source: git-tune
+Section: devel
+Priority: optional
+Maintainer: Oliver Lin <oliver@liuxiaozhen.dev>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo,
+ rustc,
+ libxkbcommon-dev,
+ libwayland-dev,
+ libx11-dev,
+ libx11-xcb-dev,
+ libxcb1-dev,
+ libxcb-render0-dev,
+ libxcb-shape0-dev,
+ libxcb-xfixes0-dev,
+ pkg-config
+Standards-Version: 4.7.2
+Rules-Requires-Root: no
+
+Package: git-tune
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ git
+Description: View and edit your global git identity
+ GitTune is a desktop application for viewing and editing
+ your global Git identity.

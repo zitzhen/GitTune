@@ -1,0 +1,7 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: GitTune
+Source: https://github.com/zitzhen/GitTune
+
+Files: *
+Copyright: Oliver Lin
+License: MIT

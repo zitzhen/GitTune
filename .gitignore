@@ -12,3 +12,11 @@
 # Staged release binary for the snap part (built by the workflows and by
 # .snapwork/scripts/assemble-snap.sh, never committed).
 /snap/prebuilt/
+
+debian/.debhelper
+debian/debhelper-build-stamp
+debian/files
+debian/git-tune.substvars
+debian/tmp/*
+debian/git-tune/usr/*
+debian/git-tune/DEBIAN/md5sums
