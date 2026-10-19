@@ -18,5 +18,4 @@ debian/debhelper-build-stamp
 debian/files
 debian/git-tune.substvars
 debian/tmp/*
-debian/git-tune/usr/*
-debian/git-tune/DEBIAN/md5sums
+debian/git-tune/
