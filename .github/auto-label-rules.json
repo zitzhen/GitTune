@@ -1,0 +1,97 @@
+{
+  "optOutLabel": "skip-auto-label",
+  "_comment": "Rules are evaluated in order. Only rules with the same 'group' are mutually exclusive (used for type). Area and platform rules have no group, so every match applies. Regexes use the case-insensitive 'i' flag. Paths are full repo-relative filenames from the PR diff.",
+  "rules": [
+    {
+      "group": "type",
+      "label": "fix",
+      "when": { "title": "^fix(\\([^)]*\\))?!?:" }
+    },
+    {
+      "group": "type",
+      "label": "feature",
+      "when": { "title": "^feat(\\([^)]*\\))?!?:" }
+    },
+    {
+      "group": "type",
+      "label": "chore",
+      "when": { "title": "^(chore|build|ci|refactor|deps)(\\([^)]*\\))?!?:|^v?\\d+\\.\\d+(\\.\\d+)?$" }
+    },
+    {
+      "group": "type",
+      "label": "docs",
+      "when": { "title": "^docs(\\([^)]*\\))?!?:" }
+    },
+    {
+      "group": "type",
+      "label": "fix",
+      "when": { "text": "\\bbug\\b|\\bbugs\\b|\\bcrash(es|ed)?\\b|\\berror(s)?\\b|\\bbroken\\b|\\bregression\\b|\\bfix(es|ed)?\\b|缺陷|崩溃|报错|修复|cmd window" }
+    },
+    {
+      "group": "type",
+      "label": "chore",
+      "when": { "text": "\\bpackag(e|ed|es|ing)\\b|\\bversion(s|ing)?\\b|\\bbump\\b|\\bsync(hronize|s|ed)?\\b|\\bupgrade\\b|\\bdependenc(y|ies)\\b|\\bci\\b|\\bworkflow(s)?\\b|打包|同步|升级|依赖|版本" }
+    },
+    {
+      "group": "type",
+      "label": "docs",
+      "when": { "text": "\\bdocs?\\b|\\bdocumentation\\b|\\breadme\\b|文档|说明|指南" }
+    },
+    {
+      "group": "type",
+      "label": "feature",
+      "when": { "text": "\\badd(s|ed|ing)?\\b|\\bimplement(s|ed|ing)?\\b|\\bsupport(s|ed|ing)?\\b|\\bnew (feature|page|setting|option)\\b|新增|支持|添加|新功能" }
+    },
+
+    {
+      "label": "ui",
+      "when": {
+        "files": "^ui/|\\.slint$",
+        "title": "\\bUI\\b|\\bSlint\\b|界面|布局|\\blayout\\b|^(feat|fix|chore|docs)\\((ui|ui/[^)]*)\\)?:",
+        "text": "\\bslint\\b|界面|布局"
+      }
+    },
+    {
+      "label": "git-config",
+      "when": {
+        "files": "^src/(gitconfig|gpg|folder_picker)\\.rs$",
+        "text": "git ?config|credential\\.helper|\\bproxy\\b|core\\.(editor|autocrlf|quotepath)|sendemail|\\bsmtp\\b|\\bgpg\\b|multi-valued|配置"
+      }
+    },
+    {
+      "label": "packaging",
+      "when": {
+        "files": "^debian/|^snap/|^wix/|^scripts/(set-version|package-windows)\\.(sh|ps1)$|^AppxManifest\\.xml$|^Package\\.appxmanifest$|\\.(desktop|ico|png|svg)$",
+        "text": "\\bpackage\\b(?!\\s+metadata)|\\bpackaging\\b|\\bpackaged\\b|\\bpackages\\b|\\bdeb\\b|\\bsnap\\b|\\bmsix\\b|\\bmsi\\b|\\bappimage\\b|\\brpm\\b|\\bppa\\b|\\binstaller(s)?\\b|\\bmanifest(s)?\\b|\\bwix\\b|Microsoft Store|App Store|Store distribution|\\brelease\\b|打包|安装包|发布"
+      }
+    },
+    {
+      "label": "build-ci",
+      "when": {
+        "files": "^\\.github/workflows/|^\\.cargo/|^build\\.rs$|^Cargo\\.(toml|lock)$",
+        "text": "\\bworkflow(s)?\\b|Cargo\\.(toml|lock)|\\.github/workflows|\\btoolchain\\b|\\bbuild system\\b|构建|编译"
+      }
+    },
+
+    {
+      "label": "windows",
+      "when": {
+        "files": "^AppxManifest\\.xml$|^Package\\.appxmanifest$|^wix/|\\.ps1$",
+        "text": "\\bwindows\\b|\\bmsix\\b|\\bmsi\\b|\\bwin32\\b|\\bcmd window\\b|WinForms|PowerShell|wincred"
+      }
+    },
+    {
+      "label": "linux",
+      "when": {
+        "files": "^debian/|^snap/",
+        "text": "\\blinux\\b|\\bubuntu\\b|\\bdebian\\b|\\bsnap\\b|\\bppa\\b|\\bzenity\\b|\\bkdialog\\b|libsecret|\\bappimage\\b|\\brpm\\b"
+      }
+    },
+    {
+      "label": "macos",
+      "when": {
+        "text": "\\bmacos\\b|osxkeychain|applescript|\\bmac os\\b"
+      }
+    }
+  ]
+}
