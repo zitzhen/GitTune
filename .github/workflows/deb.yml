@@ -1,0 +1,121 @@
+name: Debian package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deb-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deb:
+    name: Debian package (amd64)
+    # Pin 24.04: glibc here is the oldest we ship the binary against, so the
+    # resulting package also works on newer Ubuntu releases.
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # These are exactly the Build-Depends from debian/control, plus the
+      # fontconfig/GL headers build.yml installs for Slint. Keeping cargo/rustc
+      # here (even though rustup overrides them below) lets dpkg-checkbuilddeps
+      # verify the packaging metadata instead of being skipped with -d.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper dpkg-dev desktop-file-utils \
+            cargo rustc \
+            libxkbcommon-dev libwayland-dev \
+            libx11-dev libx11-xcb-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libfontconfig-dev libgl1-mesa-dev \
+            pkg-config
+
+      # debian/rules runs `cargo build --release --locked`, so it also catches a
+      # stale Cargo.lock. Use the stable toolchain for edition 2024 support.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build .deb
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Verify package metadata and payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEB=$(find .. -maxdepth 1 -name 'git-tune_*.deb' -print -quit)
+          test -n "$DEB" || { echo "::error::No .deb produced"; exit 1; }
+          echo "Built package: $DEB"
+
+          dpkg-deb --field "$DEB" Package Version Architecture Depends Maintainer
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB"
+
+          # The version is generated from debian/changelog by dh_gencontrol.
+          expected=$(dpkg-parsechangelog -S Version)
+          actual=$(dpkg-deb --field "$DEB" Version)
+          echo "Version: changelog=$expected package=$actual"
+          test "$expected" = "$actual"
+
+          # Both payload entries come from debian/install; a stale install file
+          # or a binary that failed to stage must fail here.
+          files=$(dpkg-deb --fsys-tarfile "$DEB" | tar -tf -)
+          for path in ./usr/bin/git-tune ./usr/share/applications/git-tune.desktop; do
+            grep -qx "$path" <<<"$files" || {
+              echo "::error::Missing $path in $DEB"
+              exit 1
+            }
+          done
+
+      - name: Install and smoke-test the package
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEB=$(find .. -maxdepth 1 -name 'git-tune_*.deb' -print -quit)
+          sudo apt-get install -y "$(realpath "$DEB")"
+
+          dpkg-query -W -f='${Status}\n' git-tune | grep -qx 'install ok installed'
+          test -x /usr/bin/git-tune
+          test -f /usr/share/applications/git-tune.desktop
+          desktop-file-validate /usr/share/applications/git-tune.desktop
+          test -z "$(dpkg --audit)" || { echo "::error::Broken dependencies after install"; exit 1; }
+
+          file /usr/bin/git-tune
+          ldd /usr/bin/git-tune
+          if ldd /usr/bin/git-tune | grep -q 'not found'; then
+            echo "::error::Unresolved shared libraries in installed binary"
+            exit 1
+          fi
+
+      # Advisory only: lintian findings are useful on a PR but should not block
+      # it, because style tags in debian/ can be cleaned up separately.
+      - name: Lint package (advisory)
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y --no-install-recommends lintian
+          lintian ../*.deb
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p dist
+          cp ../*.deb ../*.ddeb dist/
+          ls -lh dist
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-Deb
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
