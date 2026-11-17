@@ -13,8 +13,10 @@ env:
   # Only a tag push carries a version to verify; manual dispatch uses the
   # changelog as-is from the checked-out ref.
   TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-  # Used with gpg --local-user when signing the source package explicitly.
+  # PPA_GPG_KEY_ID is passed to dpkg as -k; the passphrase is consumed by the
+  # gpg wrapper created in the import step.
   DEB_SIGN_KEYID: ${{ secrets.PPA_GPG_KEY_ID }}
+  PPA_GPG_PASSPHRASE: ${{ secrets.PPA_GPG_PASSPHRASE }}
 
 jobs:
   ppa:
@@ -68,6 +70,23 @@ jobs:
           printf '%s\n' "$PPA_GPG_PRIVATE_KEY" | gpg --batch --yes --import
           gpg --list-secret-keys --keyid-format=long
 
+          # dput verifies the signature with gpgv, which reads
+          # ~/.gnupg/trustedkeys.gpg. Export the public key there so it does
+          # not print "public key not found" during upload.
+          gpg --export "$DEB_SIGN_KEYID" > "$HOME/.gnupg/trustedkeys.gpg"
+
+          # dpkg's internal signfile() calls gpg without --pinentry-mode, which
+          # fails on CI with "cannot open /dev/tty". Force loopback + the
+          # passphrase through a wrapper on PATH for every gpg call.
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/gpg" <<'WRAPPER'
+          #!/bin/sh
+          exec /usr/bin/gpg --pinentry-mode loopback --passphrase "${PPA_GPG_PASSPHRASE:-}" "$@"
+          WRAPPER
+          chmod +x "$HOME/bin/gpg"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/bin:$PATH"
+
       - name: Create upstream orig tarball
         shell: bash
         run: |
@@ -79,35 +98,11 @@ jobs:
             . ':(exclude)debian' | gzip -n > "../git-tune_$VERSION.orig.tar.gz"
           ls -lh ../*.orig.tar.gz
 
-      # -us -uc is deliberate: dpkg's internal gpg invocation does not honour
-      # loopback pinentry in CI (it tries /dev/tty). Signing is done explicitly
-      # in the next step, where gpg gets --pinentry-mode loopback.
-      - name: Build source package
-        run: dpkg-buildpackage -us -uc -S -sa
-
-      - name: Sign source package
-        shell: bash
-        env:
-          # Optional: only needed when the imported key is passphrase-protected.
-          PPA_GPG_PASSPHRASE: ${{ secrets.PPA_GPG_PASSPHRASE }}
-        run: |
-          set -euo pipefail
-          passphrase_args=(--passphrase '')
-          if [ -n "${PPA_GPG_PASSPHRASE:-}" ]; then
-            passphrase_args=(--passphrase "$PPA_GPG_PASSPHRASE")
-          fi
-
-          for f in ../*.dsc ../*_source.changes ../*_source.buildinfo; do
-            [ -f "$f" ] || continue
-            if ! gpg --batch --yes --pinentry-mode loopback "${passphrase_args[@]}" \
-              --local-user "$DEB_SIGN_KEYID" \
-              --output "$f.signed" --clearsign "$f"; then
-              echo "::error::Failed to sign $f. If the private key is passphrase-protected, add the PPA_GPG_PASSPHRASE secret with its passphrase (or re-export the key without one)."
-              exit 1
-            fi
-            mv "$f.signed" "$f"
-          done
-          gpg --verify ../*_source.changes
+      # Let dpkg sign the .dsc, .buildinfo and .changes itself: it signs in the
+      # right order and regenerates the .changes checksums after the .dsc is
+      # signed. Re-signing files afterwards would invalidate those checksums.
+      - name: Build signed source package
+        run: dpkg-buildpackage -S -sa
 
       - name: Upload to PPA
         shell: bash
