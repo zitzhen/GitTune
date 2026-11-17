@@ -16,6 +16,8 @@
 #   AppxManifest.xml           Identity Version="X.Y.Z.0" plus the doc comment
 #   Package.appxmanifest       same as above (kept byte-identical)
 #   wix/GitTune.wxs            version in the documented build command
+#   rpm/git-tune.spec          Version: X.Y.Z
+#   debian/git-tune.1          man page title "GitTune X.Y.Z"
 #
 # MSIX requires a four-part version, so "X.Y.Z.0" is derived automatically.
 # README.md's "Version 1.0.0 - first release" is a historical note, not the
@@ -31,6 +33,8 @@ CHANGELOG="$ROOT/debian/changelog"
 APPX="$ROOT/AppxManifest.xml"
 APPX_PACKAGE="$ROOT/Package.appxmanifest"
 WIX="$ROOT/wix/GitTune.wxs"
+RPM_SPEC="$ROOT/rpm/git-tune.spec"
+MANPAGE="$ROOT/debian/git-tune.1"
 
 MODE="sync"
 VERSION=""
@@ -152,6 +156,9 @@ if [ "$MODE" = "check" ]; then
   check_fixed "$WIX" "-d Version=$VERSION"  "wix/GitTune.wxs build example"
   check_fixed "$WIX" "GitTune-$VERSION-x64" "wix/GitTune.wxs output filename example"
 
+  check_fixed "$RPM_SPEC" "Version:        $VERSION" "rpm/git-tune.spec Version"
+  check_fixed "$MANPAGE"  "GitTune $VERSION"        "debian/git-tune.1 title"
+
   if [ "$CHECK_OK" -eq 0 ]; then
     echo "All files are in sync."
   else
@@ -208,6 +215,16 @@ patch_awk "$WIX" '
   { gsub(/GitTune-[0-9]+\.[0-9]+\.[0-9]+-x64/, "GitTune-" v "-x64") }
   { print }
 ' && CHANGED+=("wix/GitTune.wxs")
+
+patch_awk "$RPM_SPEC" '
+  /^Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+/ { print "Version:        " v; next }
+  { print }
+' && CHANGED+=("rpm/git-tune.spec")
+
+patch_awk "$MANPAGE" '
+  { sub(/GitTune [0-9]+\.[0-9]+\.[0-9]+/, "GitTune " v) }
+  { print }
+' && CHANGED+=("debian/git-tune.1")
 
 echo "Version set to $VERSION (MSIX: $MSIX_VERSION)"
 if [ "${#CHANGED[@]}" -eq 0 ]; then

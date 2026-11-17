@@ -23,3 +23,6 @@ debian/files
 debian/git-tune.substvars
 debian/tmp/*
 debian/git-tune/
+
+# RPM build output
+/dist/rpm/

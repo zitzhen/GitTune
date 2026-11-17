@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=GitTune
+Comment=View and edit your global git identity
+Exec=git-tune
+Icon=git-tune
+Terminal=false
+Categories=Development;Utility;
