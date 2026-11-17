@@ -217,9 +217,46 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # Builds the Fedora/RHEL-family RPM that ships with the release. The binary
+  # is compiled in a CentOS Stream 9 container so the glibc baseline matches
+  # RHEL 9 and later. The artifact name starts with GitTune- so the release
+  # job below picks it up together with the other distributions.
+  rpm:
+    name: RPM package (x86_64, el9)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches Cargo.toml version
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)
+          echo "Cargo.toml version: $VERSION / tag: $TAG"
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match Cargo.toml version $VERSION"
+            exit 1
+          fi
+          bash scripts/set-version.sh "$VERSION" --check
+
+      - name: Install host-side packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends imagemagick rpm
+
+      - name: Build RPM
+        run: bash scripts/package-rpm.sh
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-RPM
+          path: dist/rpm/*.rpm
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: [build, snap, deb]
+    needs: [build, snap, deb, rpm]
     runs-on: ubuntu-latest
     permissions:
       contents: write

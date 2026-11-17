@@ -14,6 +14,8 @@
       AppxManifest.xml           Identity Version="X.Y.Z.0" plus the doc comment
       Package.appxmanifest       same as above (kept byte-identical)
       wix/GitTune.wxs            version in the documented build command
+      rpm/git-tune.spec          Version: X.Y.Z
+      debian/git-tune.1          man page title "GitTune X.Y.Z"
 
     MSIX requires a four-part version, so "X.Y.Z.0" is derived automatically.
     README.md's "Version 1.0.0 - first release" is a historical note, not the
@@ -55,6 +57,8 @@ $paths = @{
     Appx        = Join-Path $root 'AppxManifest.xml'
     AppxPackage = Join-Path $root 'Package.appxmanifest'
     Wix         = Join-Path $root 'wix\GitTune.wxs'
+    RpmSpec     = Join-Path $root 'rpm\git-tune.spec'
+    Manpage     = Join-Path $root 'debian\git-tune.1'
 }
 foreach ($path in $paths.Values) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Missing file: $path" }
@@ -116,6 +120,9 @@ if ($Check) {
 
     Assert-Contains $paths.Wix ('-d Version={0}' -f $v)  'wix/GitTune.wxs build example'
     Assert-Contains $paths.Wix ('GitTune-{0}-x64' -f $v) 'wix/GitTune.wxs output filename example'
+
+    Assert-Contains $paths.RpmSpec ('Version:        {0}' -f $v) 'rpm/git-tune.spec Version'
+    Assert-Contains $paths.Manpage ("GitTune {0}" -f $v)         'debian/git-tune.1 title'
 
     if ($script:checkOk) {
         Write-Host 'All files are in sync.'
@@ -179,6 +186,9 @@ foreach ($key in @('Appx', 'AppxPackage')) {
 
 Apply-Regex 'wix/GitTune.wxs' $paths.Wix '(?m)-d[ \t]+Version=\d+\.\d+\.\d+' ('-d Version={0}' -f $v)
 Apply-Regex 'wix/GitTune.wxs' $paths.Wix '(?m)GitTune-\d+\.\d+\.\d+-x64'  ('GitTune-{0}-x64' -f $v)
+
+Apply-Regex 'rpm/git-tune.spec' $paths.RpmSpec '(?m)^Version:[ \t]+\d+\.\d+\.\d+' ('Version:        {0}' -f $v)
+Apply-Regex 'debian/git-tune.1' $paths.Manpage 'GitTune \d+\.\d+\.\d+' ('GitTune {0}' -f $v)
 
 Write-Host "Version set to $v (MSIX: $v4)"
 if ($script:changed.Count -eq 0) {

@@ -1,0 +1,67 @@
+name: RPM package check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: rpm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rpm:
+    name: RPM package (x86_64, el9)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify all version declarations
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)
+          echo "Cargo.toml version: $VERSION"
+          bash scripts/set-version.sh "$VERSION" --check
+
+      # The spec installs a binary cross-compiled for the glibc 2.34 baseline
+      # inside a CentOS Stream 9 container, so no host Rust toolchain is needed.
+      - name: Install host-side packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends imagemagick rpm
+
+      - name: Build RPM
+        run: bash scripts/package-rpm.sh
+
+      - name: Verify RPM metadata and payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          RPM=$(find dist/rpm -name '*.rpm' -print -quit)
+          test -n "$RPM" || { echo "::error::No RPM produced"; exit 1; }
+          rpm -qp --info "$RPM"
+          rpm -qp --requires "$RPM"
+          for f in \
+            /usr/bin/git-tune \
+            /usr/share/applications/git-tune.desktop \
+            /usr/share/man/man1/git-tune.1.gz \
+            /usr/share/icons/hicolor/48x48/apps/git-tune.png \
+            /usr/share/icons/hicolor/128x128/apps/git-tune.png \
+            /usr/share/icons/hicolor/256x256/apps/git-tune.png \
+            /usr/share/icons/hicolor/scalable/apps/git-tune.svg; do
+            rpm -qpl "$RPM" | grep -Fxq "$f" || {
+              echo "::error::Missing $f"; exit 1;
+            }
+          done
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-RPM
+          path: dist/rpm/*.rpm
+          if-no-files-found: error
+          retention-days: 7
