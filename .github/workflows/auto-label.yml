@@ -1,0 +1,121 @@
+name: Auto label
+
+# Apply labels to new/edited issues and pull requests based on title, body and
+# (for PRs) changed file paths. Rules live in .github/auto-label-rules.json so
+# they can be tuned without touching this workflow.
+#
+# SECURITY: pull_request_target is used deliberately so PRs from forks can be
+# labelled (the plain `pull_request` token is read-only for forks). The job
+# never checks out the PR head and never executes PR-controlled code or text:
+# the rules file is read from the repository's default branch via the API, and
+# title/body/filenames are only used as regex inputs.
+on:
+  issues:
+    types: [opened, edited, reopened]
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: auto-label-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: Apply labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Load rules and apply labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const rulesPath = '.github/auto-label-rules.json';
+            const payload = context.payload;
+            const isPR = Boolean(payload.pull_request);
+
+            const item = isPR ? payload.pull_request : payload.issue;
+            const number = item.number;
+            const title = item.title || '';
+            const body = item.body || '';
+            const text = `${title}\n${body}`;
+
+            // Always read rules from the default branch - never from PR head.
+            const { data: file } = await github.rest.repos.getContent({
+              owner, repo, path: rulesPath,
+              ref: payload.repository.default_branch,
+            });
+            if (Array.isArray(file) || file.type !== 'file') {
+              core.setFailed(`${rulesPath} is not a file on the default branch`);
+              return;
+            }
+            let rules;
+            try {
+              rules = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'));
+            } catch (error) {
+              core.setFailed(`Invalid ${rulesPath}: ${error.message}`);
+              return;
+            }
+
+            const { data: existing } = await github.rest.issues.listLabelsOnIssue({
+              owner, repo, issue_number: number, per_page: 100,
+            });
+            const have = new Set(existing.map(label => label.name));
+            if (rules.optOutLabel && have.has(rules.optOutLabel)) {
+              core.info(`Skipping #${number}: ${rules.optOutLabel} is set`);
+              return;
+            }
+
+            let files = [];
+            if (isPR) {
+              files = await github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: number, per_page: 100,
+              }).then(items => items.map(item => item.filename));
+            }
+
+            const matches = (pattern, source) => {
+              if (!pattern || !source) return false;
+              try {
+                return new RegExp(pattern, 'i').test(source);
+              } catch (error) {
+                core.warning(`Bad regex ${JSON.stringify(pattern)}: ${error.message}`);
+                return false;
+              }
+            };
+
+            const chosen = [];
+            const usedGroups = new Set();
+            for (const rule of rules.rules || []) {
+              const when = rule.when || {};
+              const hit =
+                matches(when.title, title) ||
+                matches(when.text, text) ||
+                (when.files ? files.some(path => matches(when.files, path)) : false);
+              if (!hit) continue;
+              if (rule.group) {
+                if (usedGroups.has(rule.group)) continue;
+                usedGroups.add(rule.group);
+              }
+              if (!have.has(rule.label) && !chosen.includes(rule.label)) chosen.push(rule.label);
+            }
+
+            if (chosen.length === 0) {
+              core.info(`No labels to add on #${number}`);
+              return;
+            }
+
+            try {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: number, labels: chosen,
+              });
+              core.info(`Added to #${number}: ${chosen.join(', ')}`);
+            } catch (error) {
+              // Most likely the labels have not been created in this repo yet.
+              core.warning(`Could not add labels [${chosen.join(', ')}]: ${error.message}`);
+            }
