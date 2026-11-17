@@ -13,8 +13,7 @@ env:
   # Only a tag push carries a version to verify; manual dispatch uses the
   # changelog as-is from the checked-out ref.
   TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-  # dpkg-source and dpkg-genchanges both pick this up when signing the
-  # .dsc and the _source.changes file.
+  # Used with gpg --local-user when signing the source package explicitly.
   DEB_SIGN_KEYID: ${{ secrets.PPA_GPG_KEY_ID }}
 
 jobs:
@@ -80,9 +79,32 @@ jobs:
             . ':(exclude)debian' | gzip -n > "../git-tune_$VERSION.orig.tar.gz"
           ls -lh ../*.orig.tar.gz
 
-      # -sa includes the orig tarball; signing uses DEB_SIGN_KEYID above.
-      - name: Build signed source package
-        run: dpkg-buildpackage -S -sa
+      # -us -uc is deliberate: dpkg's internal gpg invocation does not honour
+      # loopback pinentry in CI (it tries /dev/tty). Signing is done explicitly
+      # in the next step, where gpg gets --pinentry-mode loopback.
+      - name: Build source package
+        run: dpkg-buildpackage -us -uc -S -sa
+
+      - name: Sign source package
+        shell: bash
+        env:
+          # Optional: only needed when the imported key is passphrase-protected.
+          PPA_GPG_PASSPHRASE: ${{ secrets.PPA_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          passphrase_args=(--passphrase '')
+          if [ -n "${PPA_GPG_PASSPHRASE:-}" ]; then
+            passphrase_args=(--passphrase "$PPA_GPG_PASSPHRASE")
+          fi
+
+          for f in ../*.dsc ../*_source.changes ../*_source.buildinfo; do
+            [ -f "$f" ] || continue
+            gpg --batch --yes --pinentry-mode loopback "${passphrase_args[@]}" \
+              --local-user "$DEB_SIGN_KEYID" \
+              --output "$f.signed" --clearsign "$f"
+            mv "$f.signed" "$f"
+          done
+          gpg --verify ../*_source.changes
 
       - name: Upload to PPA
         shell: bash
