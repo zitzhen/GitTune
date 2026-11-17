@@ -22,7 +22,7 @@
   the same folder of the package layout, next to Assets\.
 
   Version must be 4-part and match Cargo.toml's 3-part version + ".0"
-  (Cargo.toml 1.3.2  ->  Version="1.3.2.0").
+  (Cargo.toml 1.6.0  ->  Version="1.6.0.0").
 
   AppxManifest.xml in this repository is byte-identical to this file: Visual
   Studio / MSBuild consume "Package.appxmanifest", while makeappx, the MSIX
@@ -38,7 +38,7 @@
   <Identity
     Name="OliverLin.gittune"
     Publisher="CN=A2A117EA-E7A5-4E7B-8905-441F8215E9A4"
-    Version="1.3.2.0"
+    Version="1.6.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
