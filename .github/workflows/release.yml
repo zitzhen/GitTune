@@ -158,9 +158,68 @@ jobs:
           path: "*.snap"
           if-no-files-found: error
 
+  # Builds the .deb that ships with the release. The artifact is named
+  # `GitTune-Linux-Deb` so the release job's `GitTune-*` download pattern picks
+  # it up automatically. Build inputs mirror .github/workflows/deb.yml, which
+  # validates the same packaging path on every push and pull request.
+  deb:
+    name: Debian package (amd64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches debian/changelog version
+        shell: bash
+        run: |
+          VERSION=$(sed -n '1s/.*(\([^)]*\)).*/\1/p' debian/changelog | sed 's/-[^-]*$//')
+          echo "debian/changelog version: $VERSION / tag: $TAG"
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match debian/changelog version $VERSION"
+            exit 1
+          fi
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper dpkg-dev build-essential \
+            cargo rustc \
+            libxkbcommon-dev libwayland-dev \
+            libx11-dev libx11-xcb-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libfontconfig-dev libgl1-mesa-dev \
+            pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build .deb
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: Collect .deb
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p dist
+          cp ../*.deb ../*.ddeb dist/
+          ls -lh dist
+
+      # `if-no-files-found: error` makes a silently skipped build fail here.
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-Linux-Deb
+          path: dist/*
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: [build, snap]
+    needs: [build, snap, deb]
     runs-on: ubuntu-latest
     permissions:
       contents: write
