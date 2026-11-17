@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            debhelper dpkg-dev desktop-file-utils \
+            debhelper dpkg-dev build-essential desktop-file-utils \
             cargo rustc \
             libxkbcommon-dev libwayland-dev \
             libx11-dev libx11-xcb-dev \
