@@ -99,9 +99,12 @@ jobs:
 
           for f in ../*.dsc ../*_source.changes ../*_source.buildinfo; do
             [ -f "$f" ] || continue
-            gpg --batch --yes --pinentry-mode loopback "${passphrase_args[@]}" \
+            if ! gpg --batch --yes --pinentry-mode loopback "${passphrase_args[@]}" \
               --local-user "$DEB_SIGN_KEYID" \
-              --output "$f.signed" --clearsign "$f"
+              --output "$f.signed" --clearsign "$f"; then
+              echo "::error::Failed to sign $f. If the private key is passphrase-protected, add the PPA_GPG_PASSPHRASE secret with its passphrase (or re-export the key without one)."
+              exit 1
+            fi
             mv "$f.signed" "$f"
           done
           gpg --verify ../*_source.changes
