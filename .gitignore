@@ -1,5 +1,9 @@
 /target
 
+# Cargo vendor directory: generated in CI and shipped inside the Debian source
+# package so Launchpad can build offline. Never committed to git.
+/vendor/
+
 # Snap build output
 *.snap
 *.comp
