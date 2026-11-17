@@ -37,8 +37,8 @@ jobs:
             exit 1
           fi
 
-      # Source-only builds do not run cargo, but dpkg-checkbuilddeps still
-      # requires every Build-Depends from debian/control to be installed.
+      # dpkg-checkbuilddeps still requires every Build-Depends from
+      # debian/control, even though the source-only build does not compile.
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -50,6 +50,22 @@ jobs:
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libfontconfig-dev libgl1-mesa-dev \
             pkg-config
+
+      # apt's cargo is too old for edition 2024; use stable for `cargo vendor`.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Launchpad builders have no access to crates.io, so the source package
+      # must carry every crate. vendor/ is gitignored and only exists here.
+      - name: Vendor Cargo dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo vendor --locked vendor > "$RUNNER_TEMP/vendor-config.toml"
+          # Preserve the repository's existing target-specific settings.
+          cat "$RUNNER_TEMP/vendor-config.toml" >> .cargo/config.toml
+          cat .cargo/config.toml
+          du -sh vendor
 
       - name: Import PPA signing key
         shell: bash
@@ -92,10 +108,18 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(sed -n '1s/.*(\([^)]*\)).*/\1/p' debian/changelog | sed 's/-[^-]*$//')
-          # Format 3.0 (quilt) needs an upstream tarball in the parent dir,
-          # without the debian/ directory. Only tracked files go into it.
-          git archive --format=tar --prefix="git-tune-$VERSION/" HEAD -- \
-            . ':(exclude)debian' | gzip -n > "../git-tune_$VERSION.orig.tar.gz"
+          # Format 3.0 (quilt) needs an upstream tarball with a single top-level
+          # directory, without debian/. Build it from the working tree so the
+          # generated vendor/ and the updated .cargo/config.toml are included.
+          ORIG_ROOT="$RUNNER_TEMP/orig"
+          STAGE="$ORIG_ROOT/git-tune-$VERSION"
+          mkdir -p "$STAGE"
+          tar -C . \
+            --exclude=./.git \
+            --exclude=./debian \
+            --exclude=./target \
+            -cf - . | tar -C "$STAGE" -xf -
+          tar -C "$ORIG_ROOT" -czf "../git-tune_$VERSION.orig.tar.gz" "git-tune-$VERSION"
           ls -lh ../*.orig.tar.gz
 
       # Let dpkg sign the .dsc, .buildinfo and .changes itself: it signs in the
