@@ -1,0 +1,117 @@
+name: Publish to PPA
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: ppa-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Only a tag push carries a version to verify; manual dispatch uses the
+  # changelog as-is from the checked-out ref.
+  TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+  # dpkg-source and dpkg-genchanges both pick this up when signing the
+  # .dsc and the _source.changes file.
+  DEB_SIGN_KEYID: ${{ secrets.PPA_GPG_KEY_ID }}
+
+jobs:
+  ppa:
+    name: Upload source package to PPA
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches debian/changelog version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n '1s/.*(\([^)]*\)).*/\1/p' debian/changelog | sed 's/-[^-]*$//')
+          echo "debian/changelog version: $VERSION / tag: ${TAG:-<manual>}"
+          if [ -n "$TAG" ] && [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match debian/changelog version $VERSION"
+            exit 1
+          fi
+
+      # Source-only builds do not run cargo, but dpkg-checkbuilddeps still
+      # requires every Build-Depends from debian/control to be installed.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper dpkg-dev build-essential dput \
+            cargo rustc \
+            libxkbcommon-dev libwayland-dev \
+            libx11-dev libx11-xcb-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libfontconfig-dev libgl1-mesa-dev \
+            pkg-config
+
+      - name: Import PPA signing key
+        shell: bash
+        env:
+          PPA_GPG_PRIVATE_KEY: ${{ secrets.PPA_GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$PPA_GPG_PRIVATE_KEY" || { echo "::error::PPA_GPG_PRIVATE_KEY is empty"; exit 1; }
+          test -n "$DEB_SIGN_KEYID" || { echo "::error::PPA_GPG_KEY_ID is empty"; exit 1; }
+
+          mkdir -p "$HOME/.gnupg"
+          chmod 700 "$HOME/.gnupg"
+          # Avoid "Inappropriate ioctl for device" from an interactive pinentry.
+          echo "pinentry-mode loopback" >> "$HOME/.gnupg/gpg.conf"
+          echo "allow-loopback-pinentry" >> "$HOME/.gnupg/gpg-agent.conf"
+          gpgconf --kill gpg-agent || true
+
+          printf '%s\n' "$PPA_GPG_PRIVATE_KEY" | gpg --batch --yes --import
+          gpg --list-secret-keys --keyid-format=long
+
+      - name: Create upstream orig tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n '1s/.*(\([^)]*\)).*/\1/p' debian/changelog | sed 's/-[^-]*$//')
+          # Format 3.0 (quilt) needs an upstream tarball in the parent dir,
+          # without the debian/ directory. Only tracked files go into it.
+          git archive --format=tar --prefix="git-tune-$VERSION/" HEAD -- \
+            . ':(exclude)debian' | gzip -n > "../git-tune_$VERSION.orig.tar.gz"
+          ls -lh ../*.orig.tar.gz
+
+      # -sa includes the orig tarball; signing uses DEB_SIGN_KEYID above.
+      - name: Build signed source package
+        run: dpkg-buildpackage -S -sa
+
+      - name: Upload to PPA
+        shell: bash
+        env:
+          PPA_OWNER: ${{ secrets.PPA_OWNER }}
+          PPA_NAME: ${{ secrets.PPA_NAME }}
+        run: |
+          set -euo pipefail
+          test -n "$PPA_OWNER" || { echo "::error::PPA_OWNER is empty"; exit 1; }
+          test -n "$PPA_NAME" || { echo "::error::PPA_NAME is empty"; exit 1; }
+
+          CHANGES=$(find .. -maxdepth 1 -name '*_source.changes' -print -quit)
+          test -n "$CHANGES" || { echo "::error::No _source.changes produced"; exit 1; }
+          # dput's built-in ppa profile expands to ppa.launchpad.net over FTP.
+          dput "ppa:$PPA_OWNER/$PPA_NAME" "$CHANGES"
+
+      - name: Upload source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p dist
+          cp ../*.dsc ../*.debian.tar.* ../*.orig.tar.gz ../*_source.changes dist/
+          ls -lh dist
+
+      - name: Upload source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitTune-PPA-Source
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
