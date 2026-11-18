@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           git-tune
-Version:        1.6.1
+Version:        1.6.2
 Release:        1%{?dist}
 Summary:        View and edit your global git identity
 

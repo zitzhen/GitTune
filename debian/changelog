@@ -1,4 +1,4 @@
-git-tune (1.6.1-2) resolute; urgency=medium
+git-tune (1.6.2-2) resolute; urgency=medium
 
   * Ship vendored Cargo crates for offline builds in the PPA.
 

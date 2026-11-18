@@ -5,10 +5,10 @@
   Built in CI (.github/workflows/release.yml) with:
 
     wix build wix\GitTune.wxs -arch x64 ^
-      -d Version=1.6.1 ^
+      -d Version=1.6.2 ^
       -d SourceDir=<repo>\target\release ^
       -d IconFile=<repo>\Assets\gittune.ico ^
-      -o dist\GitTune-1.6.1-x64.msi
+      -o dist\GitTune-1.6.2-x64.msi
 
   Preprocessor variables:
     Version    MSI product version - three fields only (major.minor.build);
